@@ -1,0 +1,153 @@
+#ifndef TLS13_H
+#define TLS13_H
+
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+// TLS 1.3 Protocol Version
+#define TLS13_VERSION_MAJOR 3
+#define TLS13_VERSION_MINOR 4
+
+// TLS Record Type
+typedef enum {
+    TLS_CONTENT_TYPE_INVALID = 0,
+    TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC = 20,
+    TLS_CONTENT_TYPE_ALERT = 21,
+    TLS_CONTENT_TYPE_HANDSHAKE = 22,
+    TLS_CONTENT_TYPE_APPLICATION_DATA = 23
+} tls_content_type_t;
+
+// TLS Handshake Message Types
+typedef enum {
+    TLS_HANDSHAKE_CLIENT_HELLO = 1,
+    TLS_HANDSHAKE_SERVER_HELLO = 2,
+    TLS_HANDSHAKE_NEW_SESSION_TICKET = 4,
+    TLS_HANDSHAKE_END_OF_EARLY_DATA = 5,
+    TLS_HANDSHAKE_ENCRYPTED_EXTENSIONS = 8,
+    TLS_HANDSHAKE_CERTIFICATE = 11,
+    TLS_HANDSHAKE_CERTIFICATE_REQUEST = 13,
+    TLS_HANDSHAKE_CERTIFICATE_VERIFY = 15,
+    TLS_HANDSHAKE_FINISHED = 20,
+    TLS_HANDSHAKE_KEY_UPDATE = 24,
+    TLS_HANDSHAKE_MESSAGE_HASH = 254
+} tls_handshake_type_t;
+
+// Cipher Suites
+typedef enum {
+    TLS_AES_128_GCM_SHA256 = 0x1301,
+    TLS_AES_256_GCM_SHA384 = 0x1302,
+    TLS_CHACHA20_POLY1305_SHA256 = 0x1303,
+    TLS_AES_128_CCM_SHA256 = 0x1304,
+    TLS_AES_128_CCM_8_SHA256 = 0x1305
+} tls_cipher_suite_t;
+
+// Supported Groups (Key Exchange)
+typedef enum {
+    TLS_GROUP_SECP256R1 = 0x0017,
+    TLS_GROUP_SECP384R1 = 0x0018,
+    TLS_GROUP_SECP521R1 = 0x0019,
+    TLS_GROUP_X25519 = 0x001D,
+    TLS_GROUP_X448 = 0x001E,
+    TLS_GROUP_FFDHE2048 = 0x0100,
+    TLS_GROUP_FFDHE3072 = 0x0101,
+    TLS_GROUP_FFDHE4096 = 0x0102
+} tls_supported_group_t;
+
+// Signature Algorithms
+typedef enum {
+    TLS_SIG_RSA_PKCS1_SHA256 = 0x0401,
+    TLS_SIG_RSA_PKCS1_SHA384 = 0x0501,
+    TLS_SIG_RSA_PKCS1_SHA512 = 0x0601,
+    TLS_SIG_ECDSA_SECP256R1_SHA256 = 0x0403,
+    TLS_SIG_ECDSA_SECP384R1_SHA384 = 0x0503,
+    TLS_SIG_ECDSA_SECP521R1_SHA512 = 0x0603,
+    TLS_SIG_RSA_PSS_RSAE_SHA256 = 0x0804,
+    TLS_SIG_RSA_PSS_RSAE_SHA384 = 0x0805,
+    TLS_SIG_RSA_PSS_RSAE_SHA512 = 0x0806,
+    TLS_SIG_ED25519 = 0x0807,
+    TLS_SIG_ED448 = 0x0808
+} tls_signature_algorithm_t;
+
+// Alert Levels
+typedef enum {
+    TLS_ALERT_WARNING = 1,
+    TLS_ALERT_FATAL = 2
+} tls_alert_level_t;
+
+// Alert Descriptions
+typedef enum {
+    TLS_ALERT_CLOSE_NOTIFY = 0,
+    TLS_ALERT_UNEXPECTED_MESSAGE = 10,
+    TLS_ALERT_BAD_RECORD_MAC = 20,
+    TLS_ALERT_RECORD_OVERFLOW = 22,
+    TLS_ALERT_HANDSHAKE_FAILURE = 40,
+    TLS_ALERT_BAD_CERTIFICATE = 42,
+    TLS_ALERT_UNSUPPORTED_CERTIFICATE = 43,
+    TLS_ALERT_CERTIFICATE_REVOKED = 44,
+    TLS_ALERT_CERTIFICATE_EXPIRED = 45,
+    TLS_ALERT_CERTIFICATE_UNKNOWN = 46,
+    TLS_ALERT_ILLEGAL_PARAMETER = 47,
+    TLS_ALERT_UNKNOWN_CA = 48,
+    TLS_ALERT_ACCESS_DENIED = 49,
+    TLS_ALERT_DECODE_ERROR = 50,
+    TLS_ALERT_DECRYPT_ERROR = 51,
+    TLS_ALERT_PROTOCOL_VERSION = 70,
+    TLS_ALERT_INSUFFICIENT_SECURITY = 71,
+    TLS_ALERT_INTERNAL_ERROR = 80,
+    TLS_ALERT_INAPPROPRIATE_FALLBACK = 86,
+    TLS_ALERT_USER_CANCELED = 90,
+    TLS_ALERT_MISSING_EXTENSION = 109,
+    TLS_ALERT_UNSUPPORTED_EXTENSION = 110,
+    TLS_ALERT_UNRECOGNIZED_NAME = 112,
+    TLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE = 113,
+    TLS_ALERT_UNKNOWN_PSK_IDENTITY = 115,
+    TLS_ALERT_CERTIFICATE_REQUIRED = 116,
+    TLS_ALERT_NO_APPLICATION_PROTOCOL = 120
+} tls_alert_description_t;
+
+// Maximum sizes
+#define TLS_MAX_RECORD_SIZE 16384
+#define TLS_MAX_ENCRYPTED_RECORD_SIZE (TLS_MAX_RECORD_SIZE + 256)
+#define TLS_MAX_HANDSHAKE_SIZE 65536
+#define TLS_RANDOM_SIZE 32
+#define TLS_SESSION_ID_MAX_SIZE 32
+
+// TLS Record Header
+typedef struct {
+    uint8_t type;
+    uint16_t version;
+    uint16_t length;
+} __attribute__((packed)) tls_record_header_t;
+
+// TLS Handshake Header
+typedef struct {
+    uint8_t msg_type;
+    uint8_t length[3];  // 24-bit length
+} __attribute__((packed)) tls_handshake_header_t;
+
+// Forward declarations
+typedef struct tls_context tls_context_t;
+typedef struct tls_config tls_config_t;
+typedef struct tls_session tls_session_t;
+
+// Error codes
+typedef enum {
+    TLS_SUCCESS = 0,
+    TLS_ERROR_GENERIC = -1,
+    TLS_ERROR_INVALID_PARAMETER = -2,
+    TLS_ERROR_MEMORY_ALLOCATION = -3,
+    TLS_ERROR_BUFFER_TOO_SMALL = -4,
+    TLS_ERROR_INVALID_STATE = -5,
+    TLS_ERROR_PROTOCOL_VIOLATION = -6,
+    TLS_ERROR_CRYPTO_FAILURE = -7,
+    TLS_ERROR_CERTIFICATE_VALIDATION = -8,
+    TLS_ERROR_CONNECTION_CLOSED = -9,
+    TLS_ERROR_WOULD_BLOCK = -10
+} tls_error_t;
+
+#include "crypto.h"
+#include "protocol.h"
+#include "utils.h"
+
+#endif // TLS13_H
