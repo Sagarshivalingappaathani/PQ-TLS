@@ -252,14 +252,16 @@ All metrics are saved to CSV files for analysis:
 
 ## Future Work
 
-- [ ] **Hybrid Implementation**: Combine ECDHE+Kyber and RSA+Dilithium
 - [ ] **Algorithm Variants**: Test Kyber-512, Dilithium3, Falcon, etc.
 - [ ] **Network Simulation**: Test over various latency/bandwidth conditions
 - [ ] **Integration**: OpenSSL OQS provider integration
-- [ ] **Optimization**: Assembly, AVX-512, constant-time implementations
-- [ ] **Analysis**: Power consumption, side-channel resistance
 
 ## References
+
+### Libraries
+- [OpenSSL](https://www.openssl.org/)
+- [liboqs - Open Quantum Safe](https://github.com/open-quantum-safe/liboqs)
+- [OQS-OpenSSL Provider](https://github.com/open-quantum-safe/oqs-provider)
 
 ### Standards
 - [NIST Post-Quantum Cryptography Standardization](https://csrc.nist.gov/projects/post-quantum-cryptography)
@@ -267,21 +269,7 @@ All metrics are saved to CSV files for analysis:
 - [FIPS 204: ML-DSA (Dilithium)](https://csrc.nist.gov/pubs/fips/204/final)
 - [RFC 8446: TLS 1.3](https://datatracker.ietf.org/doc/html/rfc8446)
 
-### Libraries
-- [OpenSSL](https://www.openssl.org/)
-- [liboqs - Open Quantum Safe](https://github.com/open-quantum-safe/liboqs)
-- [OQS-OpenSSL Provider](https://github.com/open-quantum-safe/oqs-provider)
-
-### Research
-- [NIST PQC Competition](https://csrc.nist.gov/projects/post-quantum-cryptography)
-- [Cloudflare: Post-Quantum TLS](https://blog.cloudflare.com/post-quantum-for-all/)
-- [Google: CECPQ2 Hybrid](https://security.googleblog.com/2018/12/a-quantum-resistant-key-exchange.html)
-
 ## License
 
 Research/Educational implementation for TLS performance analysis.
 
-## Authors
-
-Post-Quantum TLS Implementation Project
-October 2025
