@@ -421,12 +421,6 @@ The client-side "Key Exchange" time (7.35 ms) includes:
 
 On WAN connections, this could be 50-200 ms depending on distance.
 
-### Memory Usage
-
-Classical TLS uses significantly less memory than post-quantum:
-- **Classical**: ~6.8 MB
-- **Post-Quantum**: ~6.5 MB (similar due to liboqs overhead)
-
 ## Security Considerations
 
 ### ⚠️ This is a Research/Educational Implementation
@@ -549,17 +543,6 @@ done
 | `certs/server.key` | RSA-2048 private key (generated) |
 | `results/*.csv` | Performance data exports |
 
-## Future Work
-
-- [ ] Certificate chain validation
-- [ ] Hostname verification
-- [ ] Multiple cipher suite support
-- [ ] TLS 1.2 fallback (for compatibility testing)
-- [ ] Client authentication (mutual TLS)
-- [ ] Session resumption (0-RTT)
-- [ ] ALPN (Application-Layer Protocol Negotiation)
-- [ ] SNI (Server Name Indication)
-- [ ] Performance optimization (connection pooling)
 
 ## References
 
@@ -590,13 +573,3 @@ make all
 make certs
 make test
 ```
-
-## License
-
-Research/Educational implementation for TLS performance analysis.
-
-## Authors
-
-Classical TLS Implementation Project  
-Part of Classical vs Post-Quantum TLS Comparison Study  
-October 2025
