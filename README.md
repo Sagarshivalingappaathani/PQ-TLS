@@ -1,164 +1,325 @@
-# TLS Performance Analysis: Classical vs Post-Quantum
+# Post-Quantum TLS 1.3 Performance Analysis# TLS Performance Analysis: Classical vs Post-Quantum
 
-This project implements and compares **Classical TLS 1.3** with **Post-Quantum TLS 1.3** to analyze performance implications of quantum-resistant cryptography.
 
-## Project Structure
 
-```
+A comprehensive performance comparison between traditional and post-quantum cryptographic algorithms in TLS 1.3, demonstrating that quantum-resistant encryption can be **faster** than classical methods.This project implements and compares **Classical TLS 1.3** with **Post-Quantum TLS 1.3** to analyze performance implications of quantum-resistant cryptography.
+
+
+
+## 🎯 Project Overview## Project Structure
+
+
+
+This project implements and compares two complete TLS 1.3 implementations:```
+
 TLS/
-├── classic/                    # Classical TLS 1.3 (ECDHE + RSA)
-│   ├── src/                   # Client/Server implementation
+
+- **Classic-Fork**: Traditional TLS 1.3 using X25519 and RSA-2048├── classic/                    # Classical TLS 1.3 (ECDHE + RSA)
+
+- **Quantum-Fork**: Post-Quantum TLS 1.3 using Kyber-768 and Dilithium-3│   ├── src/                   # Client/Server implementation
+
 │   ├── include/               # Headers
-│   ├── results/               # Performance CSV data
+
+## 🔑 Key Findings│   ├── results/               # Performance CSV data
+
 │   ├── certs/                 # RSA-2048 certificates
-│   └── Makefile              # Build system
+
+**Post-Quantum TLS is Actually FASTER!**│   └── Makefile              # Build system
+
 │
-├── quantum/                   # Post-Quantum TLS (Kyber + Dilithium)
-│   ├── src/                  # Client/Server implementation
-│   ├── include/              # Headers
-│   ├── bin/                  # Compiled binaries
-│   ├── results/              # Performance CSV data
-│   ├── README.md            # Detailed PQ-TLS documentation
-│   └── Makefile             # Build system
+
+| Metric | Classical | Post-Quantum | Improvement |├── quantum/                   # Post-Quantum TLS (Kyber + Dilithium)
+
+|--------|-----------|--------------|-------------|│   ├── src/                  # Client/Server implementation
+
+| **Handshake Time** | 6.24 ms | 2.69 ms | **57% faster** ⚡ |│   ├── include/              # Headers
+
+| **Signing Time** | 2.50 ms | 0.51 ms | **80% faster** ⚡ |│   ├── bin/                  # Compiled binaries
+
+| **Verification Time** | 1.24 ms | 0.42 ms | **66% faster** ⚡ |│   ├── results/              # Performance CSV data
+
+| **Signature Size** | 256 bytes | 3,293 bytes | 13× larger |│   ├── README.md            # Detailed PQ-TLS documentation
+
+| **Certificate Size** | 927 bytes | 5,624 bytes | 6× larger |│   └── Makefile             # Build system
+
 │
-└── hybrid/                   # (Future) Hybrid Classical+PQ
-```
+
+**Security Status:**└── hybrid/                   # (Future) Hybrid Classical+PQ
+
+- ❌ **Classical TLS**: Vulnerable to quantum computers (Shor's algorithm)```
+
+- ✅ **Post-Quantum TLS**: Quantum-resistant (NIST PQC standards)
 
 ## Implementations
 
+## 📁 Repository Structure
+
 ### Classical TLS 1.3
 
-**Location**: `classic/`
+```
 
-**Algorithms**:
-- **Key Exchange**: ECDHE P-256 (Elliptic Curve Diffie-Hellman)
-- **Signatures**: RSA-2048 with SHA-256
-- **Cipher**: TLS_AES_128_GCM_SHA256
-- **Library**: OpenSSL 3.x
+TLS/**Location**: `classic/`
 
-**Performance**:
-- Handshake Time: ~11 ms
-- Key Exchange: ~7 ms (client includes network latency)
-- Signature Generation: ~5 ms
-- Signature Verification: ~0.25 ms
-- Network Overhead: ~1.6 KB
+├── classic-fork/          Traditional TLS 1.3 implementation
 
-### Post-Quantum TLS 1.3
+│   ├── src/              Client and server source code**Algorithms**:
 
-**Location**: `quantum/`
+│   ├── include/          Performance measurement headers- **Key Exchange**: ECDHE P-256 (Elliptic Curve Diffie-Hellman)
 
-**Algorithms**:
-- **KEM**: ML-KEM-768 (NIST-standardized Kyber-768, FIPS 203)
+│   ├── certs/            RSA-2048 certificates- **Signatures**: RSA-2048 with SHA-256
+
+│   └── README.md         Detailed implementation guide- **Cipher**: TLS_AES_128_GCM_SHA256
+
+│- **Library**: OpenSSL 3.x
+
+├── quantum-fork/          Post-Quantum TLS 1.3 implementation
+
+│   ├── src/              Client and server source code**Performance**:
+
+│   ├── include/          Performance measurement headers- Handshake Time: ~11 ms
+
+│   ├── certs/            Dilithium-3 certificates- Key Exchange: ~7 ms (client includes network latency)
+
+│   ├── QUANTUM_STATUS.md Technical details on PQ algorithms- Signature Generation: ~5 ms
+
+│   └── README.md         Detailed implementation guide- Signature Verification: ~0.25 ms
+
+│- Network Overhead: ~1.6 KB
+
+├── vendor/               Cryptographic libraries
+
+│   ├── openssl-oqs-install/  OpenSSL with liboqs integration### Post-Quantum TLS 1.3
+
+│   └── liboqs-install/       Standalone liboqs library
+
+│**Location**: `quantum/`
+
+├── PROJECT_SUMMARY.md     Complete project analysis
+
+└── QUICK_REFERENCE.md     Quick start guide**Algorithms**:
+
+```- **KEM**: ML-KEM-768 (NIST-standardized Kyber-768, FIPS 203)
+
 - **Signatures**: ML-DSA-44 (NIST-standardized Dilithium2, FIPS 204)
-- **Cipher**: AES_128_GCM_SHA256
+
+## 🚀 Quick Start- **Cipher**: AES_128_GCM_SHA256
+
 - **Library**: liboqs (Open Quantum Safe)
-
-**Performance**:
-- Handshake Time: ~4 ms (**2.75× faster**)
-- Kyber Keygen: ~3.5 ms
-- Kyber Encapsulation: ~0.06 ms (**116× faster** than ECDHE)
-- Kyber Decapsulation: ~0.05 ms
-- Dilithium Signing: ~0.2 ms (**25× faster** than RSA)
-- Dilithium Verification: ~0.09 ms (**2.8× faster** than RSA)
-- Network Overhead: ~6 KB (**3.75× larger**)
-
-## Building
 
 ### Prerequisites
 
-**Classical TLS**:
-```bash
-sudo apt-get install libssl-dev
+- Linux/Unix environment**Performance**:
+
+- GCC compiler- Handshake Time: ~4 ms (**2.75× faster**)
+
+- Make- Kyber Keygen: ~3.5 ms
+
+- Kyber Encapsulation: ~0.06 ms (**116× faster** than ECDHE)
+
+### Build and Run- Kyber Decapsulation: ~0.05 ms
+
+- Dilithium Signing: ~0.2 ms (**25× faster** than RSA)
+
+**Classic-Fork (Traditional TLS):**- Dilithium Verification: ~0.09 ms (**2.8× faster** than RSA)
+
+```bash- Network Overhead: ~6 KB (**3.75× larger**)
+
+cd classic-fork
+
+make## Building
+
+./build/tls_server &    # Terminal 1
+
+./build/tls_client      # Terminal 2### Prerequisites
+
 ```
 
-**Post-Quantum TLS**:
-```bash
-# Build liboqs from source
+**Classical TLS**:
+
+**Quantum-Fork (Post-Quantum TLS):**```bash
+
+```bashsudo apt-get install libssl-dev
+
+cd quantum-fork```
+
+make
+
+./build/tls_server &    # Terminal 1**Post-Quantum TLS**:
+
+./build/tls_client      # Terminal 2```bash
+
+```# Build liboqs from source
+
 git clone https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-cd /tmp/liboqs
-mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-make -j$(nproc)
-sudo make install
-```
 
-### Compile
+### View Resultscd /tmp/liboqs
 
-**Classical TLS**:
-```bash
-cd classic
-make all
+```bashmkdir build && cd build
+
+# Performance metrics are saved to CSVcmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+
+cat classic-fork/results/client_metrics.csvmake -j$(nproc)
+
+cat quantum-fork/results/client_metrics.csvsudo make install
+
+``````
+
+
+
+## 🔬 Algorithms Used### Compile
+
+
+
+### Classic-Fork**Classical TLS**:
+
+- **Key Exchange**: X25519 (Elliptic Curve Diffie-Hellman)```bash
+
+- **Signatures**: RSA-2048 with SHA-256cd classic
+
+- **Cipher Suite**: TLS_AES_128_GCM_SHA256make all
+
 make certs    # Generate RSA-2048 certificates
-```
 
-**Post-Quantum TLS**:
-```bash
+### Quantum-Fork```
+
+- **Key Exchange**: Kyber-768 (NIST PQC Round 3 finalist)
+
+- **Signatures**: Dilithium-3 (NIST PQC standard)**Post-Quantum TLS**:
+
+- **Cipher Suite**: TLS_AES_128_GCM_SHA256```bash
+
 cd quantum
-make all
+
+## 📊 Performance Metricsmake all
+
 ```
 
-## Running Tests
+Both implementations measure:
 
-### Classical TLS
+1. **Total Handshake Time** - Complete TLS handshake duration## Running Tests
 
-```bash
+2. **Signing Time** - Time to generate digital signatures
+
+3. **Verification Time** - Time to verify digital signatures### Classical TLS
+
+4. **Signature Size** - Size of cryptographic signatures
+
+5. **Certificate Size** - Size of X.509 certificates```bash
+
 cd classic
-make test
+
+All measurements use high-precision microsecond timing and are exported to CSV format for analysis.make test
+
 ```
+
+## 🛠️ Technology Stack
 
 ### Post-Quantum TLS
 
-```bash
-cd quantum
-make test
-```
+- **OpenSSL 1.1.1** with OQS integration
 
-## Performance Comparison
+- **liboqs 0.10.1** - Open Quantum Safe library```bash
 
-### Cryptographic Operations
+- **C Programming Language**cd quantum
 
-| Operation | Classical (ECDHE+RSA) | Post-Quantum (Kyber+Dilithium) | Speedup |
-|-----------|----------------------|-------------------------------|---------|
-| **Key Exchange (Client)** | 7.35 ms | 3.50 ms | **2.1×** |
+- **TLS 1.3 Protocol**make test
+
+- **NIST Post-Quantum Cryptography Standards**```
+
+
+
+## 📖 Documentation## Performance Comparison
+
+
+
+- **[classic-fork/README.md](classic-fork/README.md)** - Traditional TLS implementation guide### Cryptographic Operations
+
+- **[quantum-fork/README.md](quantum-fork/README.md)** - Post-quantum TLS implementation guide
+
+- **[quantum-fork/QUANTUM_STATUS.md](quantum-fork/QUANTUM_STATUS.md)** - Technical details on PQ algorithms| Operation | Classical (ECDHE+RSA) | Post-Quantum (Kyber+Dilithium) | Speedup |
+
+- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Complete project analysis|-----------|----------------------|-------------------------------|---------|
+
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick start commands| **Key Exchange (Client)** | 7.35 ms | 3.50 ms | **2.1×** |
+
 | **Key Exchange (Server)** | 0.87 ms | 0.06 ms | **14.5×** |
-| **Signature Generation** | 5.39 ms | 0.20 ms | **27×** |
-| **Signature Verification** | 0.25 ms | 0.09 ms | **2.8×** |
-| **Total Handshake** | 11.42 ms | 4.10 ms | **2.8×** |
 
-✅ **Result**: Post-quantum cryptography is **significantly faster** for all operations.
+## 🎓 Use Cases| **Signature Generation** | 5.39 ms | 0.20 ms | **27×** |
+
+| **Signature Verification** | 0.25 ms | 0.09 ms | **2.8×** |
+
+- **Research**: Academic study of post-quantum cryptography performance| **Total Handshake** | 11.42 ms | 4.10 ms | **2.8×** |
+
+- **Education**: Learning TLS 1.3 and post-quantum algorithms
+
+- **Benchmarking**: Comparing classical vs. quantum-resistant crypto✅ **Result**: Post-quantum cryptography is **significantly faster** for all operations.
+
+- **Migration Planning**: Understanding PQC implementation impact
 
 ### Network Overhead
 
+## 🔐 Security Considerations
+
 | Metric | Classical | Post-Quantum | Increase |
-|--------|-----------|--------------|----------|
-| **Bytes Sent (Client)** | 256 bytes | 1,209 bytes | **4.7×** |
-| **Bytes Received (Client)** | 1,348 bytes | 4,835 bytes | **3.6×** |
-| **Total Handshake** | 1,604 bytes | 6,044 bytes | **3.8×** |
 
-⚠️ **Trade-off**: Post-quantum uses **3.8× more bandwidth**.
+### Quantum Threat Timeline|--------|-----------|--------------|----------|
 
-### Cryptographic Sizes
+- **Current**: Classical cryptography is secure| **Bytes Sent (Client)** | 256 bytes | 1,209 bytes | **4.7×** |
 
-| Component | Classical | Post-Quantum | Ratio |
+- **~10-15 years**: Quantum computers may break RSA/ECDH| **Bytes Received (Client)** | 1,348 bytes | 4,835 bytes | **3.6×** |
+
+- **"Harvest now, decrypt later"**: Adversaries storing encrypted data today| **Total Handshake** | 1,604 bytes | 6,044 bytes | **3.8×** |
+
+
+
+### Migration Strategy⚠️ **Trade-off**: Post-quantum uses **3.8× more bandwidth**.
+
+This project demonstrates that migrating to post-quantum cryptography:
+
+- ✅ **Improves** computational performance (faster signing/verification)### Cryptographic Sizes
+
+- ⚠️ **Increases** bandwidth requirements (larger signatures/certificates)
+
+- ✅ **Provides** quantum resistance against future threats| Component | Classical | Post-Quantum | Ratio |
+
 |-----------|-----------|--------------|-------|
-| **Public Key (KEM/KEX)** | 256 bytes (ECDHE) | 1,184 bytes (Kyber) | 4.6× |
+
+## 📝 License| **Public Key (KEM/KEX)** | 256 bytes (ECDHE) | 1,184 bytes (Kyber) | 4.6× |
+
 | **Ciphertext/Exchange** | - | 1,088 bytes | - |
-| **Public Key (Sig)** | 256 bytes (RSA) | 1,312 bytes (Dilithium) | 5.1× |
+
+This project is for educational and research purposes.| **Public Key (Sig)** | 256 bytes (RSA) | 1,312 bytes (Dilithium) | 5.1× |
+
 | **Signature** | 256 bytes | 2,420 bytes | **9.5×** |
+
+## 👥 Author
 
 ## Key Findings
 
-### 1. **Performance**: Post-Quantum Wins 🏆
+Sagar Shivalingappa Athani  
 
-- **2.8× faster handshakes** (11ms → 4ms)
+GitHub: [@Sagarshivalingappaathani](https://github.com/Sagarshivalingappaathani)### 1. **Performance**: Post-Quantum Wins 🏆
+
+
+
+## 🙏 Acknowledgments- **2.8× faster handshakes** (11ms → 4ms)
+
 - **27× faster signature generation** (quantum-resistant algorithms are optimized for modern CPUs)
-- **14.5× faster key exchange** (server-side Kyber encapsulation vs ECDHE scalar multiplication)
 
-### 2. **Network Overhead**: Classical Wins 📶
+- **Open Quantum Safe (OQS)** - liboqs library and OQS-OpenSSL integration- **14.5× faster key exchange** (server-side Kyber encapsulation vs ECDHE scalar multiplication)
 
-- **3.8× more bandwidth** required for PQ-TLS
+- **NIST Post-Quantum Cryptography Project** - Algorithm standards
+
+- **OpenSSL Project** - TLS implementation foundation### 2. **Network Overhead**: Classical Wins 📶
+
+
+
+---- **3.8× more bandwidth** required for PQ-TLS
+
 - Primarily due to larger signatures (9.5× bigger)
-- Impact depends on network conditions:
+
+**Note**: This implementation uses self-signed certificates for testing. For production use, obtain certificates from a trusted Certificate Authority.- Impact depends on network conditions:
+
   - **LAN**: Negligible (microseconds)
   - **Mobile**: Could add 10-50ms latency
   - **Satellite**: Could add 100-500ms latency

@@ -1,6 +1,0 @@
-protocol,cipher_suite,handshake_ms,key_exchange_ms,signature_ms,verify_ms,bytes_sent,bytes_received,public_key_size,signature_size,memory_kb
-TLSv1.3,TLS_AES_128_GCM_SHA256,6.02,0.66,2.38,0.00,1782,256,0,256,6772
-TLSv1.3,TLS_AES_128_GCM_SHA256,11.23,0.87,5.39,0.00,1929,256,0,256,6780
-TLSv1.3,TLS_AES_128_GCM_SHA256,8.02,0.99,3.83,0.00,1782,256,0,256,6824
-TLSv1.3,TLS_AES_128_GCM_SHA256,6.53,0.55,2.26,0.00,1929,256,0,256,6684
-TLSv1.3,TLS_AES_128_GCM_SHA256,16.47,0.90,7.89,0.00,1782,256,0,256,6812
