@@ -1,0 +1,2 @@
+protocol,cipher_suite,handshake_ms,signing_ms,verification_ms,signature_bytes,certificate_bytes
+TLSv1.3,TLS_AES_128_GCM_SHA256,6.46,4.05,0.00,256,927

@@ -1,0 +1,9 @@
+{
+    "C_Cpp.errorSquiggles": "disabled",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/classic-fork/compile_commands.json",
+    "files.associations": {
+        "ssl.h": "c",
+        "err.h": "c",
+        "cstdint": "c"
+    }
+}

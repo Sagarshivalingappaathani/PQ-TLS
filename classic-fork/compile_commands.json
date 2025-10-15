@@ -1,0 +1,17 @@
+[
+  {
+    "directory": "/home/sagar8022/0418/skp-major-project/TLS/classic-fork",
+    "command": "/usr/bin/gcc -Wall -Wextra -O2 -g -Iinclude -I../vendor/openssl-install/include -o build/tls_client src/tls_client.c src/performance.c ../vendor/openssl-install/lib64/libssl.a ../vendor/openssl-install/lib64/libcrypto.a -lpthread -ldl",
+    "file": "src/tls_client.c"
+  },
+  {
+    "directory": "/home/sagar8022/0418/skp-major-project/TLS/classic-fork",
+    "command": "/usr/bin/gcc -Wall -Wextra -O2 -g -Iinclude -I../vendor/openssl-install/include -o build/tls_server src/tls_server.c src/performance.c ../vendor/openssl-install/lib64/libssl.a ../vendor/openssl-install/lib64/libcrypto.a -lpthread -ldl",
+    "file": "src/tls_server.c"
+  },
+  {
+    "directory": "/home/sagar8022/0418/skp-major-project/TLS/classic-fork",
+    "command": "/usr/bin/gcc -Wall -Wextra -O2 -g -Iinclude -I../vendor/openssl-install/include -c src/performance.c",
+    "file": "src/performance.c"
+  }
+]
