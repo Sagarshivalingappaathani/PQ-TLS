@@ -18,11 +18,38 @@ openssl req -new -x509 -days 3650 -key ca-key.pem -out ca-cert.pem \
 # Generate server private key and certificate
 echo "Generating server certificate..."
 openssl genrsa -out server-key.pem 2048
+
+# Create OpenSSL config for SAN (Subject Alternative Names)
+cat > server-san.cnf <<EOF
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = Test
+L = Test
+O = Test Server
+CN = localhost
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = *.localhost
+IP.1 = 127.0.0.1
+IP.2 = 10.190.219.88
+IP.3 = 0.0.0.0
+EOF
+
 openssl req -new -key server-key.pem -out server-req.pem \
-    -subj "/C=US/ST=Test/L=Test/O=Test Server/CN=localhost"
+    -config server-san.cnf
 openssl x509 -req -in server-req.pem -days 3650 -CA ca-cert.pem \
-    -CAkey ca-key.pem -set_serial 01 -out server-cert.pem
-rm server-req.pem
+    -CAkey ca-key.pem -set_serial 01 -out server-cert.pem \
+    -extensions v3_req -extfile server-san.cnf
+rm server-req.pem server-san.cnf
 
 # Generate client private key and certificate (optional)
 echo "Generating client certificate..."

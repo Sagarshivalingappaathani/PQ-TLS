@@ -328,16 +328,30 @@ int main(int argc, char *argv[]) {
     ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sockfd);
 
-    // Set SNI (Server Name Indication)
+    // Set SNI (Server Name Indication)  
     if (SSL_set_tlsext_host_name(ssl, hostname) != 1) {
         fprintf(stderr, "Failed to set SNI\n");
         ERR_print_errors_fp(stderr);
     }
 
-    // Enable hostname verification
-    if (SSL_set1_host(ssl, hostname) != 1) {
-        fprintf(stderr, "Failed to set hostname for verification\n");
-        ERR_print_errors_fp(stderr);
+    // Enable hostname verification with IP address detection
+    X509_VERIFY_PARAM *param = SSL_get0_param(ssl);
+    X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+    
+    // Check if hostname is an IP address
+    struct in_addr addr;
+    if (inet_pton(AF_INET, hostname, &addr) == 1) {
+        // It's an IPv4 address - use IP verification
+        if (X509_VERIFY_PARAM_set1_ip_asc(param, hostname) != 1) {
+            fprintf(stderr, "Failed to set IP address for verification\n");
+            ERR_print_errors_fp(stderr);
+        }
+    } else {
+        // It's a hostname - use hostname verification
+        if (X509_VERIFY_PARAM_set1_host(param, hostname, 0) != 1) {
+            fprintf(stderr, "Failed to set hostname for verification\n");
+            ERR_print_errors_fp(stderr);
+        }
     }
 
     printf("\n%s=== Starting TLS 1.3 Handshake (Client Side) ===%s\n\n", COLOR_YELLOW, COLOR_RESET);
