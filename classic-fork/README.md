@@ -1,6 +1,6 @@
 # Classic-Fork: Traditional TLS 1.3 Implementation
 
-A reference implementation of TLS 1.3 using classical cryptographic algorithms (X25519 for key exchange and RSA-2048 for signatures).
+Implementation of TLS 1.3 using classical cryptographic algorithms (X25519 for key exchange and RSA-2048 for signatures).
 
 ## 🎯 Purpose
 
@@ -57,8 +57,7 @@ classic-fork/
 ### Build
 
 ```bash
-make clean
-make
+make clean && make
 ```
 
 This compiles both client and server binaries to `build/` directory.
@@ -89,18 +88,25 @@ Client connects to `localhost:4433` by default.
 
 ## 📈 Typical Performance
 
-Based on testing with RSA-2048 certificates:
+Server Side
 
 | Metric | Value |
 |--------|-------|
-| Handshake Time (Client) | ~6.24 ms |
-| Handshake Time (Server) | ~6.46 ms |
-| Signing Time | ~2.50 ms |
-| Verification Time | ~0.20 ms |
+| Handshake Time (Server) | ~10.70 ms |
+| Signing Time | ~2.71 ms |
+| Verification Time | ~0.00 ms |
 | Signature Size | 256 bytes |
-| Certificate Size | 927 bytes |
-| ClientHello Size | ~512 bytes |
-| ServerHello Size | ~122 bytes |
+| Certificate Size | 935 bytes |
+
+Client Side
+
+| Metric | Value |
+|--------|-------|
+| Handshake Time (Client) | ~10.54 ms |
+| Signing Time | ~0.00 ms |
+| Verification Time | ~0.16 ms |
+| Signature Size | 256 bytes |
+| Certificate Size | 935 bytes |
 
 *Performance may vary based on hardware and system load*
 
