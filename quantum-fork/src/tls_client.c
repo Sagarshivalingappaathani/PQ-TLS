@@ -361,10 +361,26 @@ int main(int argc, char *argv[]) {
         ERR_print_errors_fp(stderr);
     }
 
-    // Enable hostname verification
-    if (SSL_set1_host(ssl, hostname) != 1) {
-        fprintf(stderr, "Failed to set hostname for verification\n");
-        ERR_print_errors_fp(stderr);
+    // Enable hostname/IP verification
+    // Detect if hostname is an IP address
+    struct in_addr ipv4;
+    struct in6_addr ipv6;
+    int is_ip = (inet_pton(AF_INET, hostname, &ipv4) == 1) || 
+                (inet_pton(AF_INET6, hostname, &ipv6) == 1);
+    
+    if (is_ip) {
+        // For IP addresses, use X509_VERIFY_PARAM_set1_ip_asc
+        X509_VERIFY_PARAM *param = SSL_get0_param(ssl);
+        if (X509_VERIFY_PARAM_set1_ip_asc(param, hostname) != 1) {
+            fprintf(stderr, "Failed to set IP address for verification\n");
+            ERR_print_errors_fp(stderr);
+        }
+    } else {
+        // For hostnames, use SSL_set1_host
+        if (SSL_set1_host(ssl, hostname) != 1) {
+            fprintf(stderr, "Failed to set hostname for verification\n");
+            ERR_print_errors_fp(stderr);
+        }
     }
 
     printf("\n%s=== Starting TLS 1.3 Handshake (Client Side) ===%s\n\n", COLOR_YELLOW, COLOR_RESET);

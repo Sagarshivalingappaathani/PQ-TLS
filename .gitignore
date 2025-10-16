@@ -1,0 +1,81 @@
+# Vendor directories (large, should be built locally)
+vendor/
+
+# Build directories
+*/build/
+build/
+
+# Object files and binaries
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.exe
+
+# Compiled binaries
+tls_client
+tls_server
+test_*
+gen_*
+
+# Logs
+*.log
+nohup.out
+
+# Temporary files
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# Result files (optional - uncomment if you want to track results)
+# */results/*.csv
+# */results/*.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# Private keys (IMPORTANT: never commit private keys)
+*-key.pem
+*.key
+ca-key*
+
+# Certificate archives
+*.tar.gz
+*.zip
+
+# OpenSSL build artifacts
+vendor/openssl-oqs/Makefile
+vendor/openssl-oqs/configdata.pm
+vendor/openssl-oqs/**/*.o
+vendor/openssl-oqs/apps/openssl
+vendor/openssl-oqs/libcrypto.a
+vendor/openssl-oqs/libssl.a
+
+# CMake build directories
+**/build-*/
+**/build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Test executables
+test_groups
+test_signatures
+gen_dilithium_cert
+monitor_build.sh
+build_oqs_tools.sh
+BUILD_OQS_TOOLS.sh
