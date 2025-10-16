@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 #define OQS_VERSION_TEXT "0.10.1"
-#define OQS_COMPILE_BUILD_TARGET "x86_64-Linux-6.14.0-33-generic"
+#define OQS_COMPILE_BUILD_TARGET "x86_64-Linux-6.8.0-85-generic"
 #define OQS_DIST_BUILD 1
 #define OQS_DIST_X86_64_BUILD 1
 /* #undef OQS_DIST_X86_BUILD */
@@ -18,9 +18,9 @@
 /* #undef USE_SANITIZER */
 /* #undef CMAKE_BUILD_TYPE */
 
-#define OQS_USE_OPENSSL 1
+/* #undef OQS_USE_OPENSSL */
 /* #undef OQS_USE_AES_OPENSSL */
-#define OQS_USE_SHA2_OPENSSL 1
+/* #undef OQS_USE_SHA2_OPENSSL */
 /* #undef OQS_USE_SHA3_OPENSSL */
 
 /* #undef OQS_EMBEDDED_BUILD */

@@ -1,4 +1,4 @@
-prefix=/home/sagar8022/0418/skp-major-project/TLS/vendor/liboqs-install
+prefix=/home/praveenkumar/Major Project/PQ-TLS/vendor/liboqs-install
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
