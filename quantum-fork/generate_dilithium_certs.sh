@@ -6,7 +6,7 @@ set -e
 
 OPENSSL_BIN="/home/sagar8022/0418/skp-major-project/TLS/vendor/openssl-oqs/apps/openssl"
 OPENSSL_CNF="/home/sagar8022/0418/skp-major-project/TLS/vendor/openssl-oqs/apps/openssl.cnf"
-FRIEND_IP="10.190.219.88"
+FRIEND_IP="10.50.42.188"
 
 # Set config file
 export OPENSSL_CONF="$OPENSSL_CNF"

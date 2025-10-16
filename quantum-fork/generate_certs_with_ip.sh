@@ -6,7 +6,7 @@ set -e
 echo "=== Generating Quantum TLS Certificates with IP Support ==="
 
 # Get friend's IP address (update this!)
-FRIEND_IP="10.190.219.88"
+FRIEND_IP="10.164.69.88"
 
 # Create directories
 mkdir -p certs

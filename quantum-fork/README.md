@@ -91,23 +91,37 @@ Client connects to `localhost:4433` and negotiates post-quantum algorithms.
 
 ## 📈 Performance Comparison
 
+Server Side
+
+| Metric | Value |
+|--------|-------|
+| Handshake Time (Server) | ~12.21 ms |
+| Signing Time | ~0.64 ms |
+| Verification Time | ~0.00 ms |
+| Signature Size | 3293 bytes |
+| Certificate Size | 5610 bytes |
+
+Client Side
+
+| Metric | Value |
+|--------|-------|
+| Handshake Time (Client) | ~12.78 ms |
+| Signing Time | ~0.00 ms |
+| Verification Time | ~0.27 ms |
+| Signature Size | 3293 bytes |
+| Certificate Size | 5610 bytes |
+
 ### Post-Quantum vs Classical TLS
 
 | Metric | Classical | Post-Quantum | Difference |
 |--------|-----------|--------------|------------|
-| Handshake Time | 6.24 ms | **2.69 ms** | **57% faster** ✅ |
-| Signing Time | 2.50 ms | **0.51 ms** | **80% faster** ✅ |
-| Verification Time | 0.20 ms | 0.26 ms | 30% slower ⚠️ |
-| Signature Size | 256 B | **3,293 B** | **+1184%** 🔴 |
-| Certificate Size | 927 B | **5,624 B** | **+507%** 🔴 |
-| ClientHello | ~512 B | **1,358 B** | **+165%** 🔴 |
-| ServerHello | ~122 B | **1,178 B** | **+865%** 🔴 |
+| Handshake Time (Server) | 10.70 ms | 12.21 ms | **+14%** ⚠️ |
+| Handshake Time (Client) | 10.54 ms | 12.78 ms | **+21%** ⚠️ |
+| Signing Time | 2.71 ms | **0.64 ms** | **76% faster** ✅ |
+| Verification Time | 0.16 ms | 0.27 ms | **+69%** ⚠️ |
+| Signature Size | 256 B | **3,293 B** | **+1186%** 🔴 |
+| Certificate Size | 935 B | **5,610 B** | **+500%** 🔴 |
 
-**Key Findings:**
-- ✅ **Handshake is actually faster** with post-quantum algorithms!
-- ✅ **Signing is much faster** than RSA
-- ⚠️ **Messages are significantly larger** (expected for PQ)
-- ✅ **Security is quantum-resistant** 🎉
 
 ## 🔐 Security Analysis
 
