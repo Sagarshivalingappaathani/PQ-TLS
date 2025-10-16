@@ -48,9 +48,15 @@ env/
 venv/
 
 # Private keys (IMPORTANT: never commit private keys)
+# NOTE: We're allowing cert files for sharing, but NEVER commit real production keys!
 *-key.pem
 *.key
 ca-key*
+
+# Allow certificate files (for testing/sharing only)
+!*/certs/*.pem
+!*/certs/*.crt
+!*/certs/*.key
 
 # Certificate archives
 *.tar.gz
