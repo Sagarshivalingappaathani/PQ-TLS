@@ -5,10 +5,8 @@ vendor/
 classic-fork/build/
 quantum-fork/build/
 
-# Results and logs
-results/
+# Logs only (keep results)
 *.log
-*.csv
 
 # Object files and binaries
 *.o
