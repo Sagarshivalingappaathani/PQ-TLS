@@ -68,7 +68,7 @@ keyUsage=critical,keyCertSign,cRLSign") 2>/dev/null
     $OPENSSL_CMD x509 -req -days 365 -in server.csr $OQS_PROVIDER \
         -CA intermediate-ca-cert.pem -CAkey intermediate-ca-key.pem -CAcreateserial \
         -out server-cert.pem \
-        -extfile <(echo "subjectAltName=DNS:localhost,DNS:tls-test-server,IP:127.0.0.1,IP:192.168.1.100,IP:192.168.43.1,IP:3.108.41.178
+        -extfile <(echo "subjectAltName=DNS:localhost,DNS:tls-test-server,IP:127.0.0.1,IP:192.168.1.100,IP:192.168.43.1,IP:3.108.41.178,IP:172.31.32.138,IP:15.206.70.28
 keyUsage=critical,digitalSignature,keyEncipherment
 extendedKeyUsage=serverAuth") 2>/dev/null
     
