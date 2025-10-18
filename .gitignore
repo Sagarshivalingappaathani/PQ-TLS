@@ -1,0 +1,32 @@
+# Vendor libraries (build these locally)
+vendor/
+
+# Build directories
+classic-fork/build/
+quantum-fork/build/
+
+# Results and logs
+results/
+*.log
+*.csv
+
+# Object files and binaries
+*.o
+*.a
+*.so
+*.so.*
+
+# Core dumps
+core
+core.*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
