@@ -159,19 +159,21 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
-    // Configure post-quantum key exchange (Kyber-768 preferred, fallback to Kyber-512 and X25519)
-    if (SSL_CTX_set1_groups_list(ctx, "kyber768:kyber512:X25519") != 1) {
-        fprintf(stderr, "Failed to set post-quantum key exchange groups\n");
+    // Configure PURE post-quantum key exchange - NIST Level 3 ONLY (NO FALLBACKS!)
+    if (SSL_CTX_set1_groups_list(ctx, "kyber768") != 1) {
+        fprintf(stderr, "Failed to set Kyber-768 key exchange (NIST Level 3)\n");
         ERR_print_errors_fp(stderr);
     }
 
-    // Configure post-quantum signatures (Dilithium-3 preferred, with RSA fallback for certificate compatibility)
-    // Note: Since our certificate uses RSA, the CertificateVerify will use RSA
-    // But we enable Dilithium here for future PQ certificate support
-    if (SSL_CTX_set1_sigalgs_list(ctx, "dilithium3:dilithium2:RSA-PSS+SHA256:RSA+SHA256:ECDSA+SHA256") != 1) {
-        fprintf(stderr, "Warning: Failed to set signature algorithms, using defaults\n");
+    // Configure PURE post-quantum signatures - NIST Level 3 ONLY (NO FALLBACKS!)
+    // Using Dilithium3 certificates and signatures exclusively
+    if (SSL_CTX_set1_sigalgs_list(ctx, "dilithium3") != 1) {
+        fprintf(stderr, "Failed to set Dilithium3 signatures (NIST Level 3)\n");
         ERR_print_errors_fp(stderr);
     }
+    
+    printf("%s[Config] PURE Post-Quantum: Kyber-768 (KEM) + Dilithium3 (Signature)%s\n", 
+           COLOR_BLUE, COLOR_RESET);
 
     // Set cipher suites (TLS 1.3)
     if (SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256") != 1) {
@@ -187,37 +189,23 @@ SSL_CTX *create_tls13_context() {
 
 // Configure SSL context with certificate and key
 void configure_context(SSL_CTX *ctx) {
-    // Try Dilithium certificate first, fallback to RSA certificate
-    const char *cert_paths[] = {
-        "certs/server-dilithium.crt",
-        "certs/server.crt",
-        NULL
-    };
-    const char *key_paths[] = {
-        "certs/server-dilithium.key",
-        "certs/server.key",
-        NULL
-    };
-    
-    int cert_loaded = 0;
-    for (int i = 0; cert_paths[i] != NULL; i++) {
-        if (access(cert_paths[i], R_OK) == 0 && access(key_paths[i], R_OK) == 0) {
-            printf("    Trying certificate: %s\n", cert_paths[i]);
-            if (SSL_CTX_use_certificate_file(ctx, cert_paths[i], SSL_FILETYPE_PEM) > 0 &&
-                SSL_CTX_use_PrivateKey_file(ctx, key_paths[i], SSL_FILETYPE_PEM) > 0) {
-                printf("    ✓ Certificate: %s\n", cert_paths[i]);
-                printf("    ✓ Private key: %s\n", key_paths[i]);
-                cert_loaded = 1;
-                break;
-            } else {
-                fprintf(stderr, "    Failed to load %s/%s, trying next...\n", cert_paths[i], key_paths[i]);
-                ERR_print_errors_fp(stderr);
-            }
-        }
+    // Load Dilithium3 certificate and key (PURE PQ - no fallbacks!)
+    if (SSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
     }
-    
-    if (!cert_loaded) {
-        fprintf(stderr, "Failed to load any certificate\n");
+
+    if (SSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("    ✓ Certificate: certs/server-cert.pem (Dilithium3)\n");
+    printf("    ✓ Private key: certs/server-key.pem (Dilithium3)\n\n");
+
+    // Verify the key matches the certificate
+    if (SSL_CTX_check_private_key(ctx) != 1) {
+        fprintf(stderr, "    ✗ Private key does not match the certificate\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }

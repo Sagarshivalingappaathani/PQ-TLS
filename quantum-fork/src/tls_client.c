@@ -197,19 +197,21 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
-    // Configure post-quantum key exchange (Kyber-768 preferred, fallback to Kyber-512 and X25519)
-    if (SSL_CTX_set1_groups_list(ctx, "kyber768:kyber512:X25519") != 1) {
-        fprintf(stderr, "Failed to set post-quantum key exchange groups\n");
+    // Configure PURE post-quantum key exchange - NIST Level 3 ONLY (NO FALLBACKS!)
+    if (SSL_CTX_set1_groups_list(ctx, "kyber768") != 1) {
+        fprintf(stderr, "Failed to set Kyber-768 key exchange (NIST Level 3)\n");
         ERR_print_errors_fp(stderr);
     }
 
-    // Configure post-quantum signatures (Dilithium-3 preferred, with RSA fallback for certificate compatibility)
-    // Note: Since our certificate uses RSA, the CertificateVerify will use RSA
-    // But we enable Dilithium here for future PQ certificate support
-    if (SSL_CTX_set1_sigalgs_list(ctx, "dilithium3:dilithium2:RSA-PSS+SHA256:RSA+SHA256:ECDSA+SHA256") != 1) {
-        fprintf(stderr, "Warning: Failed to set signature algorithms, using defaults\n");
+    // Configure PURE post-quantum signatures - NIST Level 3 ONLY (NO FALLBACKS!)
+    // Using Dilithium3 certificates and signatures exclusively
+    if (SSL_CTX_set1_sigalgs_list(ctx, "dilithium3") != 1) {
+        fprintf(stderr, "Failed to set Dilithium3 signatures (NIST Level 3)\n");
         ERR_print_errors_fp(stderr);
     }
+    
+    printf("    %s[Config] PURE Post-Quantum: Kyber-768 (KEM) + Dilithium3 (Signature)%s\n", 
+           COLOR_BLUE, COLOR_RESET);
 
     // Set cipher suites (TLS 1.3)
     if (SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256") != 1) {
@@ -221,37 +223,16 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
     SSL_CTX_set_verify_depth(ctx, 5);
 
-    // Load CA certificate for verification
-    // Try Dilithium CA first, then fallback to RSA CA, then system CA store
-    const char *ca_paths[] = {
-        "certs/ca-cert-dilithium.pem",
-        "certs/ca-cert.pem",
-        NULL
-    };
+    // Load CA certificate for verification (Dilithium3 only)
+    const char *ca_path = "certs/ca-cert.pem";
     
-    int ca_loaded = 0;
-    for (int i = 0; ca_paths[i] != NULL; i++) {
-        if (access(ca_paths[i], R_OK) == 0) {
-            printf("    Loading CA certificate: %s\n", ca_paths[i]);
-            if (SSL_CTX_load_verify_locations(ctx, ca_paths[i], NULL) == 1) {
-                printf("    %s✓ CA certificate loaded successfully%s\n", COLOR_GREEN, COLOR_RESET);
-                ca_loaded = 1;
-                break;
-            } else {
-                fprintf(stderr, "    %s✗ Failed to load %s%s\n", COLOR_RED, ca_paths[i], COLOR_RESET);
-                ERR_print_errors_fp(stderr);
-            }
-        }
+    printf("    Loading CA certificate: %s\n", ca_path);
+    if (SSL_CTX_load_verify_locations(ctx, ca_path, NULL) != 1) {
+        fprintf(stderr, "    %s✗ Failed to load CA certificate%s\n", COLOR_RED, COLOR_RESET);
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
     }
-    
-    if (!ca_loaded) {
-        printf("    No CA cert found locally, using system CA store\n");
-        // Use system CA store
-        if (SSL_CTX_set_default_verify_paths(ctx) != 1) {
-            fprintf(stderr, "    %s✗ Failed to load system CA store%s\n", COLOR_RED, COLOR_RESET);
-            ERR_print_errors_fp(stderr);
-        }
-    }
+    printf("    %s✓ CA certificate loaded successfully%s\n", COLOR_GREEN, COLOR_RESET);
 
     // Enable detailed message logging
     SSL_CTX_set_msg_callback(ctx, msg_callback);

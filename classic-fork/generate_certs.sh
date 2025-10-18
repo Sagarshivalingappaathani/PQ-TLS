@@ -1,23 +1,29 @@
 #!/bin/bash
 # Generate test certificates for Classic TLS (Forked OpenSSL)
+# Using NIST Level 3: ECDSA P-384 for TRUE 192-bit security (matching Dilithium3)
 
 set -e
 
-echo "=== Generating Test Certificates ==="
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║  Generating TRUE NIST Level 3 Test Certificates              ║"
+echo "║  Using ECDSA P-384 (192-bit security)                        ║"
+echo "║  Matches Dilithium3 security level exactly!                  ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
 
 # Create directories
 mkdir -p certs
 cd certs
 
-# Generate CA private key and certificate
-echo "Generating CA certificate..."
-openssl genrsa -out ca-key.pem 2048
-openssl req -new -x509 -days 3650 -key ca-key.pem -out ca-cert.pem \
-    -subj "/C=US/ST=Test/L=Test/O=Test CA/CN=Test CA"
+# Generate CA private key and certificate with ECDSA P-384
+echo "Generating CA certificate (ECDSA P-384)..."
+openssl ecparam -name secp384r1 -genkey -noout -out ca-key.pem
+openssl req -new -x509 -days 3650 -key ca-key.pem -out ca-cert.pem -sha384 \
+    -subj "/C=US/ST=Test/L=Test/O=Test CA Level 3/CN=Test CA ECDSA-P384"
 
-# Generate server private key and certificate
-echo "Generating server certificate..."
-openssl genrsa -out server-key.pem 2048
+# Generate server private key and certificate with ECDSA P-384
+echo "Generating server certificate (ECDSA P-384)..."
+openssl ecparam -name secp384r1 -genkey -noout -out server-key.pem
 
 # Create OpenSSL config for SAN (Subject Alternative Names)
 cat > server-san.cnf <<EOF
@@ -51,24 +57,18 @@ openssl x509 -req -in server-req.pem -days 3650 -CA ca-cert.pem \
     -extensions v3_req -extfile server-san.cnf
 rm server-req.pem server-san.cnf
 
-# Generate client private key and certificate (optional)
-echo "Generating client certificate..."
-openssl genrsa -out client-key.pem 2048
-openssl req -new -key client-key.pem -out client-req.pem \
-    -subj "/C=US/ST=Test/L=Test/O=Test Client/CN=client"
-openssl x509 -req -in client-req.pem -days 3650 -CA ca-cert.pem \
-    -CAkey ca-key.pem -set_serial 02 -out client-cert.pem
-rm client-req.pem
-
 # Set permissions
 chmod 600 *-key.pem
 chmod 644 *-cert.pem
 
-echo "✓ Certificates generated successfully!"
+echo "✓ TRUE NIST Level 3 Certificates generated successfully!"
 echo ""
 echo "Generated files:"
 ls -lh *.pem
 echo ""
+echo "Security Level: ECDSA P-384 (~192-bit) + X448 (224-bit) key exchange"
+echo "TRUE NIST Level 3 - Directly comparable to: Kyber-768 + Dilithium3"
+echo ""
 echo "You can now run:"
-echo "  Server: ./build/fork_tls_server 4433 certs/server-cert.pem certs/server-key.pem"
-echo "  Client: ./build/fork_tls_client localhost 4433"
+echo "  Server: ./build/tls_server"
+echo "  Client: ./build/tls_client <server_ip> 4433"

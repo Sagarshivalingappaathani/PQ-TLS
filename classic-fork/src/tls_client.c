@@ -203,6 +203,17 @@ SSL_CTX *create_tls13_context() {
         ERR_print_errors_fp(stderr);
     }
 
+    // Configure elliptic curves to use NIST Level 3 ONLY
+    // X448 (~224-bit security) for KEM and P-384 (~192-bit security) for signatures
+    // Strict Level 3 comparison with Kyber-768 + Dilithium3
+    if (SSL_CTX_set1_groups_list(ctx, "X448:P-384") != 1) {
+        fprintf(stderr, "Failed to set elliptic curves (X448, P-384 for Level 3)\n");
+        ERR_print_errors_fp(stderr);
+    }
+
+    printf("    %s[Config] NIST Level 3: X448 (KEM), P-384 (Signature)%s\n", 
+           COLOR_BLUE, COLOR_RESET);
+
     // Enable certificate verification (secure)
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
     SSL_CTX_set_verify_depth(ctx, 5);

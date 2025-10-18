@@ -165,6 +165,17 @@ SSL_CTX *create_tls13_context() {
         ERR_print_errors_fp(stderr);
     }
 
+    // Configure elliptic curves to use NIST Level 3 ONLY
+    // X448 (~224-bit security) for KEM and P-384 (~192-bit security) for signatures
+    // Strict Level 3 comparison with Kyber-768 + Dilithium3
+    if (SSL_CTX_set1_groups_list(ctx, "X448:P-384") != 1) {
+        fprintf(stderr, "Failed to set elliptic curves (X448, P-384 for Level 3)\n");
+        ERR_print_errors_fp(stderr);
+    }
+
+    printf("%s[Config] NIST Level 3: X448 (KEM), P-384 (Signature)%s\n", 
+           COLOR_BLUE, COLOR_RESET);
+
     // Enable detailed message logging
     SSL_CTX_set_msg_callback(ctx, msg_callback);
 
@@ -174,12 +185,12 @@ SSL_CTX *create_tls13_context() {
 // Configure SSL context with certificate and key
 void configure_context(SSL_CTX *ctx) {
     // Use certificate and private key
-    if (SSL_CTX_use_certificate_file(ctx, "certs/server.crt", SSL_FILETYPE_PEM) <= 0) {
+    if (SSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    if (SSL_CTX_use_PrivateKey_file(ctx, "certs/server.key", SSL_FILETYPE_PEM) <= 0) {
+    if (SSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
@@ -334,8 +345,8 @@ int main(int argc, char *argv[]) {
     
     printf("[3] Loading certificates...\n");
     configure_context(ctx);
-    printf("    ✓ Certificate: certs/server.crt\n");
-    printf("    ✓ Private key: certs/server.key\n\n");
+    printf("    ✓ Certificate: certs/server-cert.pem\n");
+    printf("    ✓ Private key: certs/server-key.pem\n\n");
 
     // Create server socket
     printf("[4] Creating server socket...\n");
