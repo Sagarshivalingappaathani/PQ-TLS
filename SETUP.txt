@@ -1,0 +1,79 @@
+BENCHMARKING SETUP COMPLETE
+===========================
+
+STRUCTURE:
+----------
+TLS/
+├── common/                        (Shared libraries - for future use)
+│   ├── network_config.h/c
+│   └── benchmark_config.h/c
+├── classic-fork/
+│   ├── generate_certs.sh          (Generate Level 1,3,5 certs)
+│   └── certs/level{1,3,5}/
+├── quantum-fork/
+│   ├── generate_certs.sh          (Generate Level 1,3,5 certs)
+│   └── certs/level{1,3,5}/
+└── results/
+    └── level{1,3,5}/
+        └── {same-machine,two-machines-lan,mobile-hotspot,laptop-to-vm}/
+            └── {classic,quantum}/
+
+USAGE:
+------
+1. Generate certificates:
+   cd classic-fork && ./generate_certs.sh
+   cd quantum-fork && ./generate_certs.sh
+
+2. Run server:
+   ./build/tls_server <level> <network>
+   
+   level:   1, 3, or 5
+   network: 1 (same-machine), 2 (lan), 3 (hotspot), 4 (vm)
+
+3. Run client:
+   ./build/tls_client <ip> <port> <level> <network>
+   
+   ip:      Server IP address
+   port:    Server port (usually 4433)
+   level:   1, 3, or 5
+   network: 1, 2, 3, or 4
+
+4. Examples:
+   # Classic TLS Level 3 on same machine:
+   cd classic-fork
+   ./build/tls_server 3 1                       (Terminal 1)
+   ./build/tls_client 127.0.0.1 4433 3 1        (Terminal 2)
+   
+   # Quantum TLS Level 1 on VM:
+   cd quantum-fork
+   ./build/tls_client 3.108.41.178 4433 1 4     (VM server running)
+
+ALGORITHMS:
+-----------
+Classic Level 1: X25519 + ECDSA P-256
+Classic Level 3: X448 + ECDSA P-384
+Classic Level 5: P-521 + RSA-15360
+
+Quantum Level 1: Kyber-512 + Dilithium2
+Quantum Level 3: Kyber-768 + Dilithium3
+Quantum Level 5: Kyber-1024 + Dilithium5
+
+NETWORK MAPPINGS:
+-----------------
+1 → same-machine      (127.0.0.1)
+2 → two-machines-lan  (192.168.1.100)
+3 → mobile-hotspot    (192.168.43.1)
+4 → laptop-to-vm      (3.108.41.178)
+
+CERTIFICATES:
+-------------
+- 3-tier PKI: Root CA → Intermediate CA → Server
+- Network-independent (DNS-based, no IP restriction)
+- Works on ANY network configuration
+- Located in: {classic,quantum}-fork/certs/level{1,3,5}/
+
+RESULTS:
+--------
+- Auto-saved to: results/level{X}/{network}/{mode}/
+- Files: client_metrics.csv, server_metrics.csv
+- Format: CSV with handshake, signing, verification times

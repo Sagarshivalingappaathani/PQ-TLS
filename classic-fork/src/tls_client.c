@@ -180,8 +180,8 @@ void cleanup_openssl() {
     EVP_cleanup();
 }
 
-// Create SSL context for TLS 1.3
-SSL_CTX *create_tls13_context() {
+// Create SSL context for TLS 1.3 with level-specific algorithms
+SSL_CTX *create_tls13_context(int level) {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
 
@@ -197,45 +197,47 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
+    // Configure elliptic curves based on security level
+    const char *curves_list, *cipher_suites;
+    switch(level) {
+        case 1:
+            curves_list = "X25519:P-256";
+            cipher_suites = "TLS_AES_128_GCM_SHA256";
+            break;
+        case 3:
+            curves_list = "X448:P-384";
+            cipher_suites = "TLS_AES_128_GCM_SHA256";
+            break;
+        case 5:
+            curves_list = "secp521r1";
+            cipher_suites = "TLS_AES_256_GCM_SHA384";
+            break;
+        default:
+            fprintf(stderr, "Invalid security level: %d\n", level);
+            exit(EXIT_FAILURE);
+    }
+
     // Set cipher suites (TLS 1.3)
-    if (SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256") != 1) {
+    if (SSL_CTX_set_ciphersuites(ctx, cipher_suites) != 1) {
         fprintf(stderr, "Failed to set cipher suites\n");
         ERR_print_errors_fp(stderr);
     }
 
-    // Configure elliptic curves to use NIST Level 3 ONLY
-    // X448 (~224-bit security) for KEM and P-384 (~192-bit security) for signatures
-    // Strict Level 3 comparison with Kyber-768 + Dilithium3
-    if (SSL_CTX_set1_groups_list(ctx, "X448:P-384") != 1) {
-        fprintf(stderr, "Failed to set elliptic curves (X448, P-384 for Level 3)\n");
+    // Configure elliptic curves for key exchange and signatures
+    if (SSL_CTX_set1_groups_list(ctx, curves_list) != 1) {
+        fprintf(stderr, "Failed to set elliptic curves (%s)\n", curves_list);
         ERR_print_errors_fp(stderr);
     }
 
-    printf("    %s[Config] NIST Level 3: X448 (KEM), P-384 (Signature)%s\n", 
-           COLOR_BLUE, COLOR_RESET);
+    printf("    %s[Config] Classic TLS: %s (Curves), %s (Cipher)%s\n", 
+           COLOR_BLUE, curves_list, cipher_suites, COLOR_RESET);
 
     // Enable certificate verification (secure)
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
     SSL_CTX_set_verify_depth(ctx, 5);
 
-    // Load CA certificate for verification
-    // Try local CA first, fallback to system CA store
-    if (access("certs/ca-cert.pem", R_OK) == 0) {
-        printf("    Loading CA certificate: certs/ca-cert.pem\n");
-        if (SSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", NULL) != 1) {
-            fprintf(stderr, "    %s✗ Failed to load certs/ca-cert.pem%s\n", COLOR_RED, COLOR_RESET);
-            ERR_print_errors_fp(stderr);
-        } else {
-            printf("    %s✓ CA certificate loaded successfully%s\n", COLOR_GREEN, COLOR_RESET);
-        }
-    } else {
-        printf("    CA cert not found locally, using system CA store\n");
-        // Use system CA store
-        if (SSL_CTX_set_default_verify_paths(ctx) != 1) {
-            fprintf(stderr, "    %s✗ Failed to load system CA store%s\n", COLOR_RED, COLOR_RESET);
-            ERR_print_errors_fp(stderr);
-        }
-    }
+    // Load CA certificate for verification (will be set per level in main)
+    // Certificate verification will be configured after context creation
 
     // Enable detailed message logging
     SSL_CTX_set_msg_callback(ctx, msg_callback);
@@ -362,8 +364,29 @@ int main(int argc, char *argv[]) {
     printf("    ✓ OpenSSL initialized\n\n");
     
     printf("[2] Creating TLS 1.3 context...\n");
-    ctx = create_tls13_context();
+    ctx = create_tls13_context(level);
     printf("    ✓ TLS 1.3 context created\n\n");
+    
+    // Load level-specific CA certificate
+    char ca_cert_path[256];
+    snprintf(ca_cert_path, sizeof(ca_cert_path), "certs/level%d/root-ca-cert.pem", level);
+    
+    if (access(ca_cert_path, R_OK) == 0) {
+        printf("    Loading CA certificate: %s\n", ca_cert_path);
+        if (SSL_CTX_load_verify_locations(ctx, ca_cert_path, NULL) != 1) {
+            fprintf(stderr, "    %s✗ Failed to load %s%s\n", COLOR_RED, ca_cert_path, COLOR_RESET);
+            ERR_print_errors_fp(stderr);
+        } else {
+            printf("    %s✓ CA certificate loaded successfully%s\n\n", COLOR_GREEN, COLOR_RESET);
+        }
+    } else {
+        fprintf(stderr, "    %s✗ CA certificate not found: %s%s\n", COLOR_RED, ca_cert_path, COLOR_RESET);
+        fprintf(stderr, "    Using system CA store instead\n\n");
+        if (SSL_CTX_set_default_verify_paths(ctx) != 1) {
+            fprintf(stderr, "    %s✗ Failed to load system CA store%s\n", COLOR_RED, COLOR_RESET);
+            ERR_print_errors_fp(stderr);
+        }
+    }
 
     // Connect to server
     printf("[3] Connecting to server...\n");

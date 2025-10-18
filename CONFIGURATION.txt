@@ -1,0 +1,153 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                   TLS BENCHMARKING CONFIGURATION                          ║
+║                   3-Tier PKI: Root CA → Intermediate CA → Server          ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════
+ CLASSIC TLS (classical-fork)
+═══════════════════════════════════════════════════════════════════════════
+
+Level 1 (128-bit Security - NIST Level 1)
+├── Key Exchange:  X25519 (ECDH, 256-bit key, ~128-bit security)
+├── Signature:     ECDSA P-256 (secp256r1, ~128-bit security)
+├── Cipher:        AES-128-GCM
+└── Certificates:  certs/level1/ (7 files, 3-tier PKI)
+
+Level 3 (192-bit Security - NIST Level 3)
+├── Key Exchange:  X448 (ECDH, 448-bit key, ~192-bit security)
+├── Signature:     ECDSA P-384 (secp384r1, ~192-bit security)
+├── Cipher:        AES-128-GCM
+└── Certificates:  certs/level3/ (7 files, 3-tier PKI)
+
+Level 5 (256-bit Security - NIST Level 5)
+├── Key Exchange:  ECDH P-521 (secp521r1, ~256-bit security)
+├── Signature:     ECDSA P-521 (secp521r1, ~256-bit security)
+├── Cipher:        AES-256-GCM
+└── Certificates:  certs/level5/ (7 files, 3-tier PKI)
+
+═══════════════════════════════════════════════════════════════════════════
+ QUANTUM TLS (quantum-fork)
+═══════════════════════════════════════════════════════════════════════════
+
+Level 1 (128-bit Security - NIST Level 1)
+├── Key Exchange:  Kyber-512 (Post-Quantum KEM)
+├── Signature:     Dilithium2 (Post-Quantum Signature)
+├── Cipher:        AES-128-GCM
+└── Certificates:  certs/level1/ (7 files, 3-tier PKI)
+
+Level 3 (192-bit Security - NIST Level 3)
+├── Key Exchange:  Kyber-768 (Post-Quantum KEM)
+├── Signature:     Dilithium3 (Post-Quantum Signature)
+├── Cipher:        AES-128-GCM
+└── Certificates:  certs/level3/ (7 files, 3-tier PKI)
+
+Level 5 (256-bit Security - NIST Level 5)
+├── Key Exchange:  Kyber-1024 (Post-Quantum KEM)
+├── Signature:     Dilithium5 (Post-Quantum Signature)
+├── Cipher:        AES-256-GCM
+└── Certificates:  certs/level5/ (7 files, 3-tier PKI)
+
+═══════════════════════════════════════════════════════════════════════════
+ NETWORK CONFIGURATIONS
+═══════════════════════════════════════════════════════════════════════════
+
+Network 1: Same Machine (Loopback)
+├── IP:          127.0.0.1
+├── Latency:     Minimal (~0.1ms)
+└── Use Case:    Baseline performance testing
+
+Network 2: Two Machines LAN
+├── IP:          192.168.1.100
+├── Latency:     Low (~1-5ms)
+└── Use Case:    Local network performance
+
+Network 3: Mobile Hotspot
+├── IP:          192.168.43.1
+├── Latency:     Medium (~10-50ms)
+└── Use Case:    WiFi/cellular performance
+
+Network 4: Laptop to VM (AWS)
+├── IP:          3.108.41.178
+├── Latency:     High (~50-200ms)
+└── Use Case:    Internet/cloud performance
+
+═══════════════════════════════════════════════════════════════════════════
+ CERTIFICATE STRUCTURE (Each Level)
+═══════════════════════════════════════════════════════════════════════════
+
+3-Tier PKI Architecture:
+└── Root CA (Self-signed, 10 years validity)
+    └── Intermediate CA (Signed by Root, 5 years validity, pathlen:0)
+        └── Server Certificate (Signed by Intermediate, 1 year validity)
+
+Files in each certs/level{X}/ directory:
+1. root-ca-cert.pem           - Root CA certificate
+2. root-ca-key.pem            - Root CA private key
+3. intermediate-ca-cert.pem   - Intermediate CA certificate
+4. intermediate-ca-key.pem    - Intermediate CA private key
+5. server-cert.pem            - Server certificate
+6. server-key.pem             - Server private key
+7. ca-chain.pem              - Full chain (server + intermediate)
+
+Network-Independent Certificates:
+├── DNS SANs:  localhost, tls-test-server
+├── Works on:  All 4 network configurations
+└── No IP restrictions
+
+═══════════════════════════════════════════════════════════════════════════
+ RESULTS DIRECTORY STRUCTURE
+═══════════════════════════════════════════════════════════════════════════
+
+results/
+├── level1/
+│   ├── same-machine/
+│   │   ├── classic/
+│   │   │   ├── server_metrics.csv
+│   │   │   └── client_metrics.csv
+│   │   └── quantum/
+│   │       ├── server_metrics.csv
+│   │       └── client_metrics.csv
+│   ├── two-machines-lan/ [same structure]
+│   ├── mobile-hotspot/ [same structure]
+│   └── laptop-to-vm/ [same structure]
+├── level3/ [same structure as level1]
+└── level5/ [same structure as level1]
+
+Total: 24 test configurations (3 levels × 4 networks × 2 modes)
+
+═══════════════════════════════════════════════════════════════════════════
+ USAGE
+═══════════════════════════════════════════════════════════════════════════
+
+Server:
+  cd classic-fork && ./build/tls_server <level> <network>
+  cd quantum-fork && ./build/tls_server <level> <network>
+
+Client:
+  cd classic-fork && ./build/tls_client <ip> <port> <level> <network>
+  cd quantum-fork && ./build/tls_client <ip> <port> <level> <network>
+
+Arguments:
+  <level>    : 1, 3, or 5
+  <network>  : 1 (same-machine), 2 (lan), 3 (hotspot), 4 (vm)
+  <ip>       : Server IP address (depends on network)
+  <port>     : 4433 (default TLS port)
+
+Examples:
+  ./build/tls_server 3 1
+  ./build/tls_client 127.0.0.1 4433 3 1
+
+═══════════════════════════════════════════════════════════════════════════
+ PERFORMANCE METRICS CAPTURED
+═══════════════════════════════════════════════════════════════════════════
+
+CSV Columns:
+1. protocol           - TLS protocol version (TLSv1.3)
+2. cipher_suite       - Negotiated cipher suite
+3. handshake_ms       - Total handshake time in milliseconds
+4. signing_ms         - Time taken for signature generation
+5. verification_ms    - Time taken for signature verification
+6. signature_bytes    - Size of signature in bytes
+7. certificate_bytes  - Size of certificate chain in bytes
+
+═══════════════════════════════════════════════════════════════════════════

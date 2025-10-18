@@ -142,8 +142,8 @@ void cleanup_openssl() {
     EVP_cleanup();
 }
 
-// Create SSL context for TLS 1.3
-SSL_CTX *create_tls13_context() {
+// Create SSL context for TLS 1.3 with level-specific algorithms
+SSL_CTX *create_tls13_context(int level) {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
 
@@ -159,22 +159,40 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
+    // Configure elliptic curves and cipher suites based on security level
+    const char *curves_list, *cipher_suites;
+    switch(level) {
+        case 1:
+            curves_list = "X25519:P-256";
+            cipher_suites = "TLS_AES_128_GCM_SHA256";
+            break;
+        case 3:
+            curves_list = "X448:P-384";
+            cipher_suites = "TLS_AES_128_GCM_SHA256";
+            break;
+        case 5:
+            curves_list = "secp521r1";
+            cipher_suites = "TLS_AES_256_GCM_SHA384";
+            break;
+        default:
+            fprintf(stderr, "Invalid security level: %d\n", level);
+            exit(EXIT_FAILURE);
+    }
+
     // Set cipher suites (TLS 1.3)
-    if (SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256") != 1) {
+    if (SSL_CTX_set_ciphersuites(ctx, cipher_suites) != 1) {
         fprintf(stderr, "Failed to set cipher suites\n");
         ERR_print_errors_fp(stderr);
     }
 
-    // Configure elliptic curves to use NIST Level 3 ONLY
-    // X448 (~224-bit security) for KEM and P-384 (~192-bit security) for signatures
-    // Strict Level 3 comparison with Kyber-768 + Dilithium3
-    if (SSL_CTX_set1_groups_list(ctx, "X448:P-384") != 1) {
-        fprintf(stderr, "Failed to set elliptic curves (X448, P-384 for Level 3)\n");
+    // Configure elliptic curves for key exchange and signatures
+    if (SSL_CTX_set1_groups_list(ctx, curves_list) != 1) {
+        fprintf(stderr, "Failed to set elliptic curves (%s)\n", curves_list);
         ERR_print_errors_fp(stderr);
     }
 
-    printf("%s[Config] NIST Level 3: X448 (KEM), P-384 (Signature)%s\n", 
-           COLOR_BLUE, COLOR_RESET);
+    printf("%s[Config] Classic TLS: %s (Curves), %s (Cipher)%s\n", 
+           COLOR_BLUE, curves_list, cipher_suites, COLOR_RESET);
 
     // Enable detailed message logging
     SSL_CTX_set_msg_callback(ctx, msg_callback);
@@ -183,14 +201,21 @@ SSL_CTX *create_tls13_context() {
 }
 
 // Configure SSL context with certificate and key
-void configure_context(SSL_CTX *ctx) {
-    // Use certificate and private key
-    if (SSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", SSL_FILETYPE_PEM) <= 0) {
+void configure_context(SSL_CTX *ctx, int level) {
+    char cert_path[256];
+    char key_path[256];
+    
+    // Build paths to level-specific certificates
+    snprintf(cert_path, sizeof(cert_path), "certs/level%d/ca-chain.pem", level);
+    snprintf(key_path, sizeof(key_path), "certs/level%d/server-key.pem", level);
+    
+    // Use certificate chain (server cert + intermediate CA) and private key
+    if (SSL_CTX_use_certificate_chain_file(ctx, cert_path) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    if (SSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", SSL_FILETYPE_PEM) <= 0) {
+    if (SSL_CTX_use_PrivateKey_file(ctx, key_path, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
@@ -374,13 +399,13 @@ int main(int argc, char *argv[]) {
     printf("    ✓ OpenSSL initialized\n\n");
     
     printf("[2] Creating TLS 1.3 context...\n");
-    ctx = create_tls13_context();
+    ctx = create_tls13_context(level);
     printf("    ✓ TLS 1.3 context created\n\n");
     
     printf("[3] Loading certificates...\n");
-    configure_context(ctx);
-    printf("    ✓ Certificate: certs/server-cert.pem\n");
-    printf("    ✓ Private key: certs/server-key.pem\n\n");
+    configure_context(ctx, level);
+    printf("    ✓ Certificate: certs/level%d/server-cert.pem\n", level);
+    printf("    ✓ Private key: certs/level%d/server-key.pem\n\n", level);
 
     // Create server socket
     printf("[4] Creating server socket...\n");

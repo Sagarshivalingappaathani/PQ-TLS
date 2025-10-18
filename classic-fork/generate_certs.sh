@@ -1,224 +1,116 @@
-#!/bin/bash#!/bin/bash
+#!/bin/bash
 
-# Generate test certificates for Classic TLS (Forked OpenSSL)
+# Generate test certificates for Classic TLS (3-tier PKI)
+# Levels: 1 (P-256), 3 (P-384), 5 (P-521)
 
-# Classic TLS Certificate Generation# Using NIST Level 3: ECDSA P-384 for TRUE 192-bit security (matching Dilithium3)
+set -e
 
-# Generates 3-tier PKI: Root CA → Intermediate CA → Server Certificate
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Levels: 1 (P-256), 3 (P-384), 5 (RSA-15360)set -e
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  Classic TLS Certificate Generation (3-tier PKI)             ║${NC}"
+echo -e "${BLUE}║  Level 1: ECDSA P-256 (128-bit)                              ║${NC}"
+echo -e "${BLUE}║  Level 3: ECDSA P-384 (192-bit)                              ║${NC}"
+echo -e "${BLUE}║  Level 5: ECDSA P-521 (256-bit)                              ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
 
+# Create base certs directory
+mkdir -p certs
+cd certs
 
-
-set -eecho "╔════════════════════════════════════════════════════════════════╗"
-
-echo "║  Generating TRUE NIST Level 3 Test Certificates              ║"
-
-RED='\033[0;31m'echo "║  Using ECDSA P-384 (192-bit security)                        ║"
-
-GREEN='\033[0;32m'echo "║  Matches Dilithium3 security level exactly!                  ║"
-
-BLUE='\033[0;34m'echo "╚════════════════════════════════════════════════════════════════╝"
-
-NC='\033[0m'echo ""
-
-
-
-print_header() {# Create directories
-
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"mkdir -p certs
-
-    echo -e "${BLUE}  $1${NC}"cd certs
-
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-
-}# Generate CA private key and certificate with ECDSA P-384
-
-echo "Generating CA certificate (ECDSA P-384)..."
-
-print_info() {openssl ecparam -name secp384r1 -genkey -noout -out ca-key.pem
-
-    echo -e "${GREEN}✓${NC} $1"openssl req -new -x509 -days 3650 -key ca-key.pem -out ca-cert.pem -sha384 \
-
-}    -subj "/C=US/ST=Test/L=Test/O=Test CA Level 3/CN=Test CA ECDSA-P384"
-
-
-
-generate_ecdsa_certs() {# Generate server private key and certificate with ECDSA P-384
-
-    local level=$1echo "Generating server certificate (ECDSA P-384)..."
-
-    local curve=$2openssl ecparam -name secp384r1 -genkey -noout -out server-key.pem
-
-    local cert_dir="certs/level${level}"
-
-    # Create OpenSSL config for SAN (Subject Alternative Names)
-
-    print_header "Generating Level ${level} Certificates (${curve})"cat > server-san.cnf <<EOF
-
-    [req]
-
-    mkdir -p "$cert_dir"distinguished_name = req_distinguished_name
-
-    cd "$cert_dir"req_extensions = v3_req
-
-    prompt = no
-
-    print_info "Generating Root CA..."
-
-    openssl ecparam -name $curve -genkey -noout -out root-ca-key.pem[req_distinguished_name]
-
-    openssl req -new -x509 -days 3650 -key root-ca-key.pem -out root-ca-cert.pem \C = US
-
-        -subj "/C=US/ST=State/L=City/O=TestOrg/CN=Root-CA-Level${level}" \ST = Test
-
-        -addext "basicConstraints=critical,CA:TRUE" \L = Test
-
-        -addext "keyUsage=critical,keyCertSign,cRLSign"O = Test Server
-
-    CN = localhost
-
-    print_info "Generating Intermediate CA..."
-
-    openssl ecparam -name $curve -genkey -noout -out intermediate-ca-key.pem[v3_req]
-
-    openssl req -new -key intermediate-ca-key.pem -out intermediate-ca.csr \subjectAltName = @alt_names
-
-        -subj "/C=US/ST=State/L=City/O=TestOrg/CN=Intermediate-CA-Level${level}"
-
-    [alt_names]
-
-    cat > intermediate-ca-ext.cnf << EOFDNS.1 = localhost
-
-basicConstraints = critical,CA:TRUE,pathlen:0DNS.2 = *.localhost
-
-keyUsage = critical,keyCertSign,cRLSignIP.1 = 127.0.0.1
-
-EOFIP.2 = 10.190.219.88
-
-    IP.3 = 0.0.0.0
-
-    openssl x509 -req -in intermediate-ca.csr -CA root-ca-cert.pem \EOF
-
-        -CAkey root-ca-key.pem -CAcreateserial -out intermediate-ca-cert.pem \
-
-        -days 1825 -sha256 -extfile intermediate-ca-ext.cnfopenssl req -new -key server-key.pem -out server-req.pem \
-
-        -config server-san.cnf
-
-    print_info "Generating Server Certificate..."openssl x509 -req -in server-req.pem -days 3650 -CA ca-cert.pem \
-
-    openssl ecparam -name $curve -genkey -noout -out server-key.pem    -CAkey ca-key.pem -set_serial 01 -out server-cert.pem \
-
-    openssl req -new -key server-key.pem -out server.csr \    -extensions v3_req -extfile server-san.cnf
-
-        -subj "/C=US/ST=State/L=City/O=TestOrg/CN=TLS-Test-Server"rm server-req.pem server-san.cnf
-
+# Function to generate ECDSA certificates (all levels)
+generate_ecdsa_certs() {
+    local level=$1
+    local curve=$2
+    local curve_name=$3
     
-
-    cat > server-ext.cnf << EOF# Set permissions
-
-basicConstraints = CA:FALSEchmod 600 *-key.pem
-
-keyUsage = digitalSignature, keyEnciphermentchmod 644 *-cert.pem
-
-extendedKeyUsage = serverAuth
-
-subjectAltName = DNS:localhost, DNS:tls-test-serverecho "✓ TRUE NIST Level 3 Certificates generated successfully!"
-
-EOFecho ""
-
-    echo "Generated files:"
-
-    openssl x509 -req -in server.csr -CA intermediate-ca-cert.pem \ls -lh *.pem
-
-        -CAkey intermediate-ca-key.pem -CAcreateserial -out server-cert.pem \echo ""
-
-        -days 365 -sha256 -extfile server-ext.cnfecho "Security Level: ECDSA P-384 (~192-bit) + X448 (224-bit) key exchange"
-
-    echo "TRUE NIST Level 3 - Directly comparable to: Kyber-768 + Dilithium3"
-
-    cat intermediate-ca-cert.pem root-ca-cert.pem > ca-chain.pemecho ""
-
-    echo "You can now run:"
-
-    rm -f intermediate-ca.csr intermediate-ca-ext.cnf server.csr server-ext.cnf *.srlecho "  Server: ./build/tls_server"
-
-    echo "  Client: ./build/tls_client <server_ip> 4433"
-
-    print_info "Certificates created: Root CA → Intermediate CA → Server"
+    echo -e "${YELLOW}[Level $level] Generating ECDSA $curve_name certificates...${NC}"
     
-    cd - > /dev/null
-}
-
-generate_rsa_certs() {
-    local cert_dir="certs/level5"
+    mkdir -p level${level}
+    cd level${level}
     
-    print_header "Generating Level 5 Certificates (RSA-15360)"
+    # 1. Generate Root CA
+    echo "  [1/7] Generating Root CA private key..."
+    openssl ecparam -name $curve -genkey -noout -out root-ca-key.pem
     
-    mkdir -p "$cert_dir"
-    cd "$cert_dir"
-    
-    print_info "Generating Root CA (RSA-15360) - Takes several minutes..."
-    openssl genrsa -out root-ca-key.pem 15360 2>/dev/null
+    echo "  [2/7] Creating Root CA certificate..."
     openssl req -new -x509 -days 3650 -key root-ca-key.pem -out root-ca-cert.pem \
-        -subj "/C=US/ST=State/L=City/O=TestOrg/CN=Root-CA-Level5" \
-        -addext "basicConstraints=critical,CA:TRUE" \
-        -addext "keyUsage=critical,keyCertSign,cRLSign"
+        -subj "/C=US/ST=State/L=City/O=Test-Org/OU=Root-CA/CN=Test-Root-CA"
     
-    print_info "Generating Intermediate CA (RSA-15360) - Takes several minutes..."
-    openssl genrsa -out intermediate-ca-key.pem 15360 2>/dev/null
+    # 2. Generate Intermediate CA
+    echo "  [3/7] Generating Intermediate CA private key..."
+    openssl ecparam -name $curve -genkey -noout -out intermediate-ca-key.pem
+    
+    echo "  [4/7] Creating Intermediate CA CSR..."
     openssl req -new -key intermediate-ca-key.pem -out intermediate-ca.csr \
-        -subj "/C=US/ST=State/L=City/O=TestOrg/CN=Intermediate-CA-Level5"
+        -subj "/C=US/ST=State/L=City/O=Test-Org/OU=Intermediate-CA/CN=Test-Intermediate-CA"
     
-    cat > intermediate-ca-ext.cnf << EOF
-basicConstraints = critical,CA:TRUE,pathlen:0
-keyUsage = critical,keyCertSign,cRLSign
-EOF
+    echo "  [5/7] Signing Intermediate CA certificate..."
+    openssl x509 -req -days 1825 -in intermediate-ca.csr \
+        -CA root-ca-cert.pem -CAkey root-ca-key.pem -CAcreateserial \
+        -out intermediate-ca-cert.pem \
+        -extfile <(echo "basicConstraints=critical,CA:true,pathlen:0
+keyUsage=critical,keyCertSign,cRLSign")
     
-    openssl x509 -req -in intermediate-ca.csr -CA root-ca-cert.pem \
-        -CAkey root-ca-key.pem -CAcreateserial -out intermediate-ca-cert.pem \
-        -days 1825 -sha256 -extfile intermediate-ca-ext.cnf
+    # 3. Generate Server Certificate
+    echo "  [6/7] Generating Server private key..."
+    openssl ecparam -name $curve -genkey -noout -out server-key.pem
     
-    print_info "Generating Server Certificate (RSA-15360) - Takes several minutes..."
-    openssl genrsa -out server-key.pem 15360 2>/dev/null
+    echo "  [7/7] Creating and signing Server certificate..."
     openssl req -new -key server-key.pem -out server.csr \
-        -subj "/C=US/ST=State/L=City/O=TestOrg/CN=TLS-Test-Server"
+        -subj "/C=US/ST=State/L=City/O=Test-Org/OU=Server/CN=tls-test-server"
     
-    cat > server-ext.cnf << EOF
-basicConstraints = CA:FALSE
-keyUsage = digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
-subjectAltName = DNS:localhost, DNS:tls-test-server
-EOF
+    openssl x509 -req -days 365 -in server.csr \
+        -CA intermediate-ca-cert.pem -CAkey intermediate-ca-key.pem -CAcreateserial \
+        -out server-cert.pem \
+        -extfile <(echo "subjectAltName=DNS:localhost,DNS:tls-test-server,IP:127.0.0.1,IP:192.168.1.100,IP:192.168.43.1,IP:3.108.41.178
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth")
     
-    openssl x509 -req -in server.csr -CA intermediate-ca-cert.pem \
-        -CAkey intermediate-ca-key.pem -CAcreateserial -out server-cert.pem \
-        -days 365 -sha256 -extfile server-ext.cnf
+    # Create certificate chain (Server + Intermediate)
+    cat server-cert.pem intermediate-ca-cert.pem > ca-chain.pem
     
-    cat intermediate-ca-cert.pem root-ca-cert.pem > ca-chain.pem
+    # Cleanup CSR files
+    rm -f intermediate-ca.csr server.csr root-ca-cert.srl intermediate-ca-cert.srl
     
-    rm -f intermediate-ca.csr intermediate-ca-ext.cnf server.csr server-ext.cnf *.srl
+    echo -e "  ${GREEN}✓ Level $level certificates generated successfully!${NC}"
+    echo ""
     
-    print_info "Certificates created: Root CA → Intermediate CA → Server"
-    
-    cd - > /dev/null
+    cd ..
 }
 
-print_header "Classic TLS Certificate Generation"
-echo ""
-echo "Generating network-independent certificates:"
-echo "  Level 1: ECDSA P-256"
-echo "  Level 3: ECDSA P-384"
-echo "  Level 5: RSA-15360"
+# Generate certificates for all levels
+echo -e "${BLUE}Starting certificate generation for all 3 levels...${NC}"
 echo ""
 
-generate_ecdsa_certs 1 "secp256r1"
-generate_ecdsa_certs 3 "secp384r1"
-generate_rsa_certs
+# Level 1: ECDSA P-256 (128-bit security)
+generate_ecdsa_certs 1 "secp256r1" "P-256"
 
-print_header "Complete!"
+# Level 3: ECDSA P-384 (192-bit security)
+generate_ecdsa_certs 3 "secp384r1" "P-384"
+
+# Level 5: ECDSA P-521 (256-bit security)
+generate_ecdsa_certs 5 "secp521r1" "P-521"
+
+cd ..
+
 echo ""
-echo "Certificates: certs/{level1,level3,level5}/"
-echo "✅ Network-independent (works on any network)"
+echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║  All certificates generated successfully!                     ║${NC}"
+echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo "Certificate structure for each level:"
+echo "  certs/level1/, level3/, level5/ each contain:"
+echo "  - root-ca-cert.pem       (Root CA certificate)"
+echo "  - root-ca-key.pem        (Root CA private key)"
+echo "  - intermediate-ca-cert.pem (Intermediate CA certificate)"
+echo "  - intermediate-ca-key.pem  (Intermediate CA private key)"
+echo "  - server-cert.pem        (Server certificate)"
+echo "  - server-key.pem         (Server private key)"
+echo "  - ca-chain.pem           (Full chain: server + intermediate)"
 echo ""

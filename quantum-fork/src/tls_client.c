@@ -181,7 +181,7 @@ void cleanup_openssl() {
 }
 
 // Create SSL context for TLS 1.3
-SSL_CTX *create_tls13_context() {
+SSL_CTX *create_tls13_context(int level) {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
 
@@ -197,21 +197,40 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
-    // Configure PURE post-quantum key exchange - NIST Level 3 ONLY (NO FALLBACKS!)
-    if (SSL_CTX_set1_groups_list(ctx, "kyber768") != 1) {
-        fprintf(stderr, "Failed to set Kyber-768 key exchange (NIST Level 3)\n");
+    // Configure post-quantum algorithms based on security level
+    const char *kem_name, *sig_name;
+    switch(level) {
+        case 1:
+            kem_name = "kyber512";
+            sig_name = "dilithium2";
+            break;
+        case 3:
+            kem_name = "kyber768";
+            sig_name = "dilithium3";
+            break;
+        case 5:
+            kem_name = "kyber1024";
+            sig_name = "dilithium5";
+            break;
+        default:
+            fprintf(stderr, "Invalid security level: %d\n", level);
+            exit(EXIT_FAILURE);
+    }
+
+    // Configure PURE post-quantum key exchange (NO FALLBACKS!)
+    if (SSL_CTX_set1_groups_list(ctx, kem_name) != 1) {
+        fprintf(stderr, "Failed to set %s key exchange\n", kem_name);
         ERR_print_errors_fp(stderr);
     }
 
-    // Configure PURE post-quantum signatures - NIST Level 3 ONLY (NO FALLBACKS!)
-    // Using Dilithium3 certificates and signatures exclusively
-    if (SSL_CTX_set1_sigalgs_list(ctx, "dilithium3") != 1) {
-        fprintf(stderr, "Failed to set Dilithium3 signatures (NIST Level 3)\n");
+    // Configure PURE post-quantum signatures (NO FALLBACKS!)
+    if (SSL_CTX_set1_sigalgs_list(ctx, sig_name) != 1) {
+        fprintf(stderr, "Failed to set %s signatures\n", sig_name);
         ERR_print_errors_fp(stderr);
     }
     
-    printf("    %s[Config] PURE Post-Quantum: Kyber-768 (KEM) + Dilithium3 (Signature)%s\n", 
-           COLOR_BLUE, COLOR_RESET);
+    printf("    %s[Config] PURE Post-Quantum: %s (KEM) + %s (Signature)%s\n", 
+           COLOR_BLUE, kem_name, sig_name, COLOR_RESET);
 
     // Set cipher suites (TLS 1.3)
     if (SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256") != 1) {
@@ -223,16 +242,7 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
     SSL_CTX_set_verify_depth(ctx, 5);
 
-    // Load CA certificate for verification (Dilithium3 only)
-    const char *ca_path = "certs/ca-cert.pem";
-    
-    printf("    Loading CA certificate: %s\n", ca_path);
-    if (SSL_CTX_load_verify_locations(ctx, ca_path, NULL) != 1) {
-        fprintf(stderr, "    %s✗ Failed to load CA certificate%s\n", COLOR_RED, COLOR_RESET);
-        ERR_print_errors_fp(stderr);
-        exit(EXIT_FAILURE);
-    }
-    printf("    %s✓ CA certificate loaded successfully%s\n", COLOR_GREEN, COLOR_RESET);
+    // CA certificate will be loaded per level in main()
 
     // Enable detailed message logging
     SSL_CTX_set_msg_callback(ctx, msg_callback);
@@ -292,20 +302,55 @@ int main(int argc, char *argv[]) {
     char buffer[BUFFER_SIZE];
     int bytes;
     performance_metrics_t metrics;
-    const char *hostname = SERVER_IP;
-    int port = SERVER_PORT;
+    const char *hostname;
+    int port;
+    int level, network;
 
-    if (argc > 1) {
-        hostname = argv[1];
+    if (argc != 5) {
+        fprintf(stderr, "Usage: %s <ip> <port> <level> <network>\n", argv[0]);
+        fprintf(stderr, "  ip:      Server IP address\n");
+        fprintf(stderr, "  port:    Server port\n");
+        fprintf(stderr, "  level:   1 (128-bit), 3 (192-bit), 5 (256-bit)\n");
+        fprintf(stderr, "  network: 1 (same-machine), 2 (lan), 3 (hotspot), 4 (vm)\n");
+        fprintf(stderr, "\nExample: %s 127.0.0.1 4433 3 1\n", argv[0]);
+        exit(1);
     }
-    if (argc > 2) {
-        port = atoi(argv[2]);
+
+    hostname = argv[1];
+    port = atoi(argv[2]);
+    level = atoi(argv[3]);
+    network = atoi(argv[4]);
+
+    if (level != 1 && level != 3 && level != 5) {
+        fprintf(stderr, "Error: Invalid level '%d' (must be 1, 3, or 5)\n", level);
+        exit(1);
     }
+
+    if (network < 1 || network > 4) {
+        fprintf(stderr, "Error: Invalid network '%d' (must be 1-4)\n", network);
+        exit(1);
+    }
+
+    const char *network_names[] = {"", "same-machine", "two-machines-lan", "mobile-hotspot", "laptop-to-vm"};
+
+    // Construct output path
+    char output_dir[512];
+    char output_file[512];
+    snprintf(output_dir, sizeof(output_dir), "../results/level%d/%s/quantum", level, network_names[network]);
+    snprintf(output_file, sizeof(output_file), "%s/client_metrics.csv", output_dir);
+    
+    // Create output directory
+    char mkdir_cmd[600];
+    snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p %s", output_dir);
+    system(mkdir_cmd);
 
     printf("\n%s╔════════════════════════════════════════╗%s\n", COLOR_BLUE, COLOR_RESET);
     printf("%s║   Post-Quantum TLS 1.3 Client         ║%s\n", COLOR_BLUE, COLOR_RESET);
     printf("%s╚════════════════════════════════════════╝%s\n", COLOR_BLUE, COLOR_RESET);
-    printf("Server: %s:%d\n\n", hostname, port);
+    printf("Server: %s:%d\n", hostname, port);
+    printf("Level: %d\n", level);
+    printf("Network: %d (%s)\n", network, network_names[network]);
+    printf("Output: %s\n\n", output_file);
 
     // Initialize metrics
     perf_init(&metrics);
@@ -324,8 +369,20 @@ int main(int argc, char *argv[]) {
     printf("    ✓ OpenSSL initialized\n\n");
     
     printf("[2] Creating TLS 1.3 context...\n");
-    ctx = create_tls13_context();
+    ctx = create_tls13_context(level);
     printf("    ✓ TLS 1.3 context created\n\n");
+    
+    // Load level-specific CA certificate
+    char ca_cert_path[256];
+    snprintf(ca_cert_path, sizeof(ca_cert_path), "certs/level%d/root-ca-cert.pem", level);
+    
+    printf("    Loading CA certificate: %s\n", ca_cert_path);
+    if (SSL_CTX_load_verify_locations(ctx, ca_cert_path, NULL) != 1) {
+        fprintf(stderr, "    %s✗ Failed to load %s%s\n", COLOR_RED, ca_cert_path, COLOR_RESET);
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    printf("    %s✓ CA certificate loaded successfully%s\n\n", COLOR_GREEN, COLOR_RESET);
 
     // Connect to server
     printf("[3] Connecting to server...\n");
@@ -454,7 +511,7 @@ int main(int argc, char *argv[]) {
 
         // Print and save metrics
         perf_print_summary(&metrics);
-        perf_save_to_csv(&metrics, "results/client_metrics.csv");
+        perf_save_to_csv(&metrics, output_file);
     }
 
     // Cleanup
