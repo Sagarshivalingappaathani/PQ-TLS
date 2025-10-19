@@ -142,8 +142,8 @@ void cleanup_openssl() {
     EVP_cleanup();
 }
 
-// Create SSL context for TLS 1.3
-SSL_CTX *create_tls13_context() {
+// Create SSL context for TLS 1.3 with level-specific algorithms
+SSL_CTX *create_tls13_context(int level) {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
 
@@ -159,19 +159,40 @@ SSL_CTX *create_tls13_context() {
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
-    // Configure post-quantum key exchange (Kyber-768 preferred, fallback to Kyber-512 and X25519)
-    if (SSL_CTX_set1_groups_list(ctx, "kyber768:kyber512:X25519") != 1) {
-        fprintf(stderr, "Failed to set post-quantum key exchange groups\n");
+    // Configure post-quantum algorithms based on security level
+    const char *kem_name, *sig_name;
+    switch(level) {
+        case 1:
+            kem_name = "kyber512";
+            sig_name = "dilithium2";
+            break;
+        case 3:
+            kem_name = "kyber768";
+            sig_name = "dilithium3";
+            break;
+        case 5:
+            kem_name = "kyber1024";
+            sig_name = "dilithium5";
+            break;
+        default:
+            fprintf(stderr, "Invalid security level: %d\n", level);
+            exit(EXIT_FAILURE);
+    }
+
+    // Configure PURE post-quantum key exchange (NO FALLBACKS!)
+    if (SSL_CTX_set1_groups_list(ctx, kem_name) != 1) {
+        fprintf(stderr, "Failed to set %s key exchange\n", kem_name);
         ERR_print_errors_fp(stderr);
     }
 
-    // Configure post-quantum signatures (Dilithium-3 preferred, with RSA fallback for certificate compatibility)
-    // Note: Since our certificate uses RSA, the CertificateVerify will use RSA
-    // But we enable Dilithium here for future PQ certificate support
-    if (SSL_CTX_set1_sigalgs_list(ctx, "dilithium3:dilithium2:RSA-PSS+SHA256:RSA+SHA256:ECDSA+SHA256") != 1) {
-        fprintf(stderr, "Warning: Failed to set signature algorithms, using defaults\n");
+    // Configure PURE post-quantum signatures (NO FALLBACKS!)
+    if (SSL_CTX_set1_sigalgs_list(ctx, sig_name) != 1) {
+        fprintf(stderr, "Failed to set %s signatures\n", sig_name);
         ERR_print_errors_fp(stderr);
     }
+    
+    printf("%s[Config] PURE Post-Quantum: %s (KEM) + %s (Signature)%s\n", 
+           COLOR_BLUE, kem_name, sig_name, COLOR_RESET);
 
     // Set cipher suites (TLS 1.3)
     if (SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256") != 1) {
@@ -186,38 +207,32 @@ SSL_CTX *create_tls13_context() {
 }
 
 // Configure SSL context with certificate and key
-void configure_context(SSL_CTX *ctx) {
-    // Try Dilithium certificate first, fallback to RSA certificate
-    const char *cert_paths[] = {
-        "certs/server-dilithium.crt",
-        "certs/server.crt",
-        NULL
-    };
-    const char *key_paths[] = {
-        "certs/server-dilithium.key",
-        "certs/server.key",
-        NULL
-    };
+void configure_context(SSL_CTX *ctx, int level) {
+    char cert_path[256];
+    char key_path[256];
+    const char *dilithium_names[] = {"", "Dilithium2", "", "Dilithium3", "", "Dilithium5"};
     
-    int cert_loaded = 0;
-    for (int i = 0; cert_paths[i] != NULL; i++) {
-        if (access(cert_paths[i], R_OK) == 0 && access(key_paths[i], R_OK) == 0) {
-            printf("    Trying certificate: %s\n", cert_paths[i]);
-            if (SSL_CTX_use_certificate_file(ctx, cert_paths[i], SSL_FILETYPE_PEM) > 0 &&
-                SSL_CTX_use_PrivateKey_file(ctx, key_paths[i], SSL_FILETYPE_PEM) > 0) {
-                printf("    ✓ Certificate: %s\n", cert_paths[i]);
-                printf("    ✓ Private key: %s\n", key_paths[i]);
-                cert_loaded = 1;
-                break;
-            } else {
-                fprintf(stderr, "    Failed to load %s/%s, trying next...\n", cert_paths[i], key_paths[i]);
-                ERR_print_errors_fp(stderr);
-            }
-        }
+    // Build paths to level-specific certificates
+    snprintf(cert_path, sizeof(cert_path), "certs/level%d/ca-chain.pem", level);
+    snprintf(key_path, sizeof(key_path), "certs/level%d/server-key.pem", level);
+    
+    // Load post-quantum certificate chain (server cert + intermediate CA)
+    if (SSL_CTX_use_certificate_chain_file(ctx, cert_path) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
     }
-    
-    if (!cert_loaded) {
-        fprintf(stderr, "Failed to load any certificate\n");
+
+    if (SSL_CTX_use_PrivateKey_file(ctx, key_path, SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("    ✓ Certificate: %s (%s)\n", cert_path, dilithium_names[level]);
+    printf("    ✓ Private key: %s (%s)\n\n", key_path, dilithium_names[level]);
+
+    // Verify the key matches the certificate
+    if (SSL_CTX_check_private_key(ctx) != 1) {
+        fprintf(stderr, "    ✗ Private key does not match the certificate\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
@@ -266,7 +281,7 @@ int create_server_socket(int port) {
 }
 
 // Handle client connection
-void handle_client(SSL *ssl, performance_metrics_t *metrics) {
+void handle_client(SSL *ssl, performance_metrics_t *metrics, const char *output_file) {
     char buffer[BUFFER_SIZE];
     int bytes;
     size_t total_received = 0;
@@ -369,22 +384,56 @@ void handle_client(SSL *ssl, performance_metrics_t *metrics) {
 
     // Print and save metrics
     perf_print_summary(metrics);
-    perf_save_to_csv(metrics, "results/server_metrics.csv");
+    perf_save_to_csv(metrics, output_file);
 }
 
 int main(int argc, char *argv[]) {
     SSL_CTX *ctx;
     int server_fd;
     int port = SERVER_PORT;
+    int level, network;
 
-    if (argc > 1) {
-        port = atoi(argv[1]);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <level> <network>\n", argv[0]);
+        fprintf(stderr, "  level:   1 (128-bit), 3 (192-bit), 5 (256-bit)\n");
+        fprintf(stderr, "  network: 1 (same-machine), 2 (lan), 3 (hotspot), 4 (vm)\n");
+        fprintf(stderr, "\nExample: %s 3 1\n", argv[0]);
+        exit(1);
     }
+
+    level = atoi(argv[1]);
+    network = atoi(argv[2]);
+
+    if (level != 1 && level != 3 && level != 5) {
+        fprintf(stderr, "Error: Invalid level '%d' (must be 1, 3, or 5)\n", level);
+        exit(1);
+    }
+
+    if (network < 1 || network > 4) {
+        fprintf(stderr, "Error: Invalid network '%d' (must be 1-4)\n", network);
+        exit(1);
+    }
+
+    const char *network_names[] = {"", "same-machine", "two-machines-lan", "mobile-hotspot", "laptop-to-vm"};
+
+    // Construct output path
+    char output_dir[512];
+    char output_file[512];
+    snprintf(output_dir, sizeof(output_dir), "../results/level%d/%s/quantum", level, network_names[network]);
+    snprintf(output_file, sizeof(output_file), "%s/server_metrics.csv", output_dir);
+    
+    // Create output directory
+    char mkdir_cmd[600];
+    snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p %s", output_dir);
+    system(mkdir_cmd);
 
     printf("\n%s╔════════════════════════════════════════╗%s\n", COLOR_BLUE, COLOR_RESET);
     printf("%s║   Post-Quantum TLS 1.3 Server         ║%s\n", COLOR_BLUE, COLOR_RESET);
     printf("%s╚════════════════════════════════════════╝%s\n", COLOR_BLUE, COLOR_RESET);
-    printf("Port: %d\n\n", port);
+    printf("Port: %d\n", port);
+    printf("Level: %d\n", level);
+    printf("Network: %d (%s)\n", network, network_names[network]);
+    printf("Output: %s\n\n", output_file);
 
     // Initialize
     printf("[1] Initializing OpenSSL...\n");
@@ -392,13 +441,11 @@ int main(int argc, char *argv[]) {
     printf("    ✓ OpenSSL initialized\n\n");
     
     printf("[2] Creating TLS 1.3 context...\n");
-    ctx = create_tls13_context();
+    ctx = create_tls13_context(level);
     printf("    ✓ TLS 1.3 context created\n\n");
     
     printf("[3] Loading certificates...\n");
-    configure_context(ctx);
-    printf("    ✓ Certificate: certs/server.crt\n");
-    printf("    ✓ Private key: certs/server.key\n\n");
+    configure_context(ctx, level);
 
     // Create server socket
     printf("[4] Creating server socket...\n");
@@ -434,7 +481,7 @@ int main(int argc, char *argv[]) {
         SSL_set_fd(ssl, client);
 
         // Handle client
-        handle_client(ssl, &metrics);
+        handle_client(ssl, &metrics, output_file);
 
         // Cleanup
         SSL_shutdown(ssl);
